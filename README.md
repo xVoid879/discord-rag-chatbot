@@ -5,13 +5,13 @@ Boldly going where hundreds have gone before.
 ## Installation and Setup
 1. Visit [Discord's Developer portal](https://discord.com/developers/applications) and create a bot. Copy and save its bot token.
 2. Visit [Groq](https://console.groq.com/keys) and create an API key.
-3. Install [Python](https://www.python.org/downloads/) alongside its pip package manager.
+3. Install [Python](https://www.python.org/downloads) alongside its pip package manager.
 4. Clone or download+extract this repository.
 5. Open a terminal of your choice and install the required libraries:
 ```bash
 pip install -r "[your/path/to/]requirements.txt" -U
 ```
-5. Open [SETTINGS.py](SETTINGS.py) in your editor of choice, and adjust the bot's settings as desired.
+5. Open [Settings.py](Settings.py) in your editor of choice, and adjust the bot's settings as desired.
 6. Launch the bot:
 ```bash
 py "[your/path/to/]Launch.py" "[Discord bot token]" "[Groq API key]" "[privileged user #1's Discord ID]" ... "[privileged user #n's Discord ID]"

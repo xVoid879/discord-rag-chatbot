@@ -1,0 +1,5 @@
+discord.py
+faiss-cpu
+fastembed
+langchain_community # In theory removable with enough manual implementation
+langchain_groq

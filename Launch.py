@@ -1,146 +1,141 @@
-from discord import Intents
-from discord.ext.commands import Bot, Context
+from discord import Intents, Member, Message, Reaction
+from discord.ext.commands import Bot
 from pydantic import SecretStr
 from sys import argv
+import os
 
 from Settings import *
-from src.ai import AI
-from src.cache import Cache
-from src.cooldown import Cooldown
-from src.vectorstore import Vectorstore
+from src.messages import *
+from src.reactions import *
 
+if len(argv) < 1: raise RuntimeError("No arguments found when launching the chatbot.")
+CURRENT_DIRECTORY = os.path.dirname(argv[0])
 if len(argv) < 2: raise RuntimeError("No Discord bot token provided (must be 1st argument).")
 DISCORD_BOT_TOKEN = SecretStr(argv[1])
 if len(argv) < 3: raise RuntimeError("No Groq API key provided (must be 2nd argument).")
 AI_API_KEY = SecretStr(argv[2])
-PRIVILEGED_USER_IDS = set(int(id) for id in argv[3:])
 
 intents = Intents.default()
 intents.message_content = True
-bot = Bot(command_prefix="->", intents=intents)
+bot = Bot(command_prefix="", intents=intents)
+
 
 ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS)
 cooldown = Cooldown(COOLDOWN_DURATION, COOLDOWN_CHECK_INTERVAL, COOLDOWN_MAX_QUERIES_BEFORE_ACTIVATION) if COOLDOWN_DURATION is not None and COOLDOWN_DURATION > 0. else None
 cache = Cache(CACHE_MAX_SIZE, CACHE_EXPIRATION_TIME, CACHE_SEMANTIC_SIMILARITY_THRESHOLD) if CACHE_MAX_SIZE > 0 else None
+requests = Requests(REQUESTS_ADDITION_MESSAGE, REQUESTS_ADDITION_KEYWORDS)
 vectorstore = Vectorstore(VECTORSTORE_FILEPATH, VECTORSTORE_CONTEXT_RELEVANCE_THRESHOLD)
+trustedGroup = Group(DISCORD_TRUSTED_IDS_FILEPATH)
+blockedGroup = Group(DISCORD_BLOCKED_IDS_FILEPATH)
 
-@bot.command()
-async def ask(ctx: Context[Bot], *, query: str) -> None:
-	"""Looks up and generates an answer for the provided query."""
-	# Check cooldown
-	if ctx.author.id in DISCORD_ID_BLACKLIST:
-		await ctx.message.add_reaction("❌")
-		return
-	if cooldown is not None:
-		if (remainingCooldown := cooldown.getRemainingTime()) > 0.:
-			await ctx.send(COOLDOWN_MESSAGE + f" ({remainingCooldown:.2g} seconds remaining)", reference=ctx.message, mention_author=False)
-			await ctx.message.add_reaction("❌")
-			return
-	# Check caches
-	if cache is not None:
-		if response := cache.getExactMatch(query):
-			await ctx.send(response + f"\n-# Cached response. {AI_DISCLAIMER}", reference=ctx.message, mention_author=False)
-			await ctx.message.add_reaction("✅")
-			return
-		if response := cache.getSemanticMatch(query):
-			await ctx.send(response + f"\n-# Cached response. {AI_DISCLAIMER}", reference=ctx.message, mention_author=False)
-			await ctx.message.add_reaction("✅")
-			return
-	# Retrieve context from vectorstore
-	context = "\n- ".join(text for text, _ in vectorstore.query(query)) if vectorstore is not None else None
-	# If context is required, and no context is found, return error
-	if context:
-		context = "- " + context
-	elif AI_ERROR_IF_NO_CONTEXT:
-		await ctx.send(AI_ERROR_IF_NO_CONTEXT, reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("✅")
-		return
-
-	# Retrieve AI response
-	response = ai.query(query, context) if AI_ENABLE else "Here are the relevant messages in my corpus relating to your question:\n" + ("- None" if context is None else context)
-	# Send message to user, and cache for future
-	await ctx.send(response + f"\n-# {AI_DISCLAIMER}", reference=ctx.message, mention_author=False)
-	await ctx.message.add_reaction("✅")
-	if cache is not None:
-		cache[query] = (response, cache.embed(query))
-
-
-@bot.command()
-async def addtext(ctx: Context[Bot], *texts: str) -> None:
-	"""(Privileged command) Adds the provided texts to the vectorstore.
-	   To avoid mistakes with forgetting quotation marks, at least one text must be 2+ words.
-	   Quotation marks embedded in texts must be "escaped" by adding a backslash directly in front of them."""
-	if ctx.author.id not in PRIVILEGED_USER_IDS or ctx.author.id in DISCORD_ID_BLACKLIST:
-		await ctx.message.add_reaction("❌")
-		return
-	if vectorstore is None:
-		await ctx.send(f"Error: No vectorstore exists to add the text{'' if len(texts) == 1 else 's'} to.", reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("❌")
-		return
-	if len([word for text in texts for word in text.split()]) == len(texts):
-		await ctx.send(f"All texts received solely consisted of individual words. Make sure to wrap your texts in quotation marks.", reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("❌")
-		return
-	if (savedCount := vectorstore.add(texts)) < len(texts):
-		await ctx.send(f"{len(texts) - savedCount} text{'' if len(texts) - savedCount == 1 else 's'} failed to be added.", reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("❌")
-		return
-	await ctx.message.add_reaction("✅")
-
-
-# @bot.command()
-# async def removetext(ctx: Context[Bot], *texts: str) -> None:
-# 	"""(Privileged command) Adds the provided texts to the vectorstore.
-# 	   To avoid mistakes with forgetting quotation marks, at least one text must be 2+ words.
-# 	   Quotation marks embedded in texts must be "escaped" by adding a backslash directly in front of them."""
-# 	if ctx.author.id not in PRIVILEGED_USER_IDS or ctx.author.id in DISCORD_ID_BLACKLIST:
-# 		await ctx.message.add_reaction("❌")
-# 		return
-# 	if vectorstore is None:
-# 		await ctx.send(f"Error: No vectorstore exists to add the text{'' if len(texts) == 1 else 's'} to.", reference=ctx.message, mention_author=False)
-# 		await ctx.message.add_reaction("❌")
-# 		return
-# 	if len([word for text in texts for word in text.split()]) == len(texts):
-# 		await ctx.send(f"All texts received solely consisted of individual words. Make sure to wrap your texts in quotation marks.", reference=ctx.message, mention_author=False)
-# 		await ctx.message.add_reaction("❌")
-# 		return
-# 	if (savedCount := vectorstore.remove(texts)) < len(texts):
-# 		await ctx.send(f"{len(texts) - savedCount} text{'' if len(texts) - savedCount == 1 else 's'} failed to be removed.", reference=ctx.message, mention_author=False)
-# 		await ctx.message.add_reaction("❌")
-# 		return
-# 	await ctx.message.add_reaction("✅")
-
-
-@bot.command()
-async def save(ctx: Context[Bot], *, filepath: str | None = None):
-	"""(Privileged command) Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided."""
-	if ctx.author.id not in PRIVILEGED_USER_IDS or ctx.author.id in DISCORD_ID_BLACKLIST:
-		await ctx.message.add_reaction("❌")
-		return
-	if vectorstore is None:
-		await ctx.send(f"Error: No vectorstore exists to save.", reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("❌")
-		return
-	if not vectorstore.save(filepath):
-		await ctx.send(f"An error occurred while saving the vectorstore.", reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("❌")
-		return
-	await ctx.message.add_reaction("✅")
-
-
-@bot.command()
-async def load(ctx: Context[Bot], *, filepath: str | None = None):
-	"""(Privileged command) Loads the vectorstore from the provided filepath, or the last-used filepath if none is provided."""
+@bot.event
+async def on_message(message: Message) -> None:
+	"""Decode desired action upon being pinged."""
+	# Thank you to Opal for contributing code to this.
 	global vectorstore
-	if ctx.author.id not in PRIVILEGED_USER_IDS or ctx.author.id in DISCORD_ID_BLACKLIST:
-		await ctx.message.add_reaction("❌")
+	# If bot was not mentioned or mentioned itself, ignore
+	if bot.user not in message.mentions or message.author == bot.user or bot.user is None:
 		return
-	if vectorstore is None:
-		vectorstore = Vectorstore(filepath)
-	if not vectorstore.load(filepath):
-		await ctx.send(f"An error occurred while loading the vectorstore.", reference=ctx.message, mention_author=False)
-		await ctx.message.add_reaction("❌")
+	# If user is blacklisted and not an owner, ignore
+	if message.author.id in blockedGroup and (bot.owner_ids is None or message.author.id not in bot.owner_ids):
+		await message.add_reaction("❌")
 		return
-	await ctx.message.add_reaction("✅")
+	# Remove ping from message
+	originalInput = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
+	# If message is for another bot, ignore
+	if any(originalInput.startswith(otherBotPrefix) for otherBotPrefix in DISCORD_OTHER_BOT_PREFIXES):
+		return
+	commandSubcommandString = originalInput.split(maxsplit=3)
+	# If bot was pinged without any other commands:
+	if not commandSubcommandString:
+		await message.reply(DISCORD_HELP_MESSAGE, mention_author=False)
+		return
+	# Otherwise decipher command:
+	argumentsCount = len(commandSubcommandString)
+	match command := commandSubcommandString[0].casefold():
+		case "addtext":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else: await message_add(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
+		case "block":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else: await message_add(message, *commandSubcommandString[1:], obj=blockedGroup)
+		case "distrust":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
+		case "hasrole":
+			if argumentsCount < 3: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			else:
+				match commandSubcommandString[1].casefold():
+					case "blocked":
+						await message_isin(message, commandSubcommandString[1], obj=blockedGroup)
+					case "trusted":
+						await message_isin(message, commandSubcommandString[1], obj=trustedGroup)
+					case _:
+						await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+		case "load":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else:
+				match commandSubcommandString[1].casefold():
+					case "blocked":
+						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=blockedGroup)
+					case "trusted":
+						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=trustedGroup)
+					case "vectorstore":
+						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
+					case _:
+						await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+		case "ping":
+			await message_ping(message, bot=bot)
+		# case "removetext":
+		# 	if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+		# 	elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+		# 	else: await message_remove(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
+		case "save":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else:
+				match commandSubcommandString[1].casefold():
+					case "blocked":
+						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=blockedGroup)
+					case "trusted":
+						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=trustedGroup)
+					case "vectorstore":
+						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
+					case _:
+						await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+		case "trust":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else: await message_add(message, *commandSubcommandString[1:], obj=trustedGroup)
+		case "unblock":
+			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			else: await message_remove(message, *commandSubcommandString[1:], obj=blockedGroup)
+		case _:
+			await message_ask(message, originalInput, ai=ai, cache=cache, cooldown=cooldown, vectorstore=vectorstore)
+
+
+@bot.event
+async def on_reaction_add(reaction: Reaction, member: Member) -> None:
+	# If the reaction is not on a request message...
+	if reaction.message not in requests:
+		# ...and it's not the designated emoji, or by a non-trusted user, ignore
+		if reaction.emoji != DISCORD_REQUEST_ADDITION_EMOJI or member.id not in trustedGroup:
+			return
+		if reaction.message.author.id == member.id:
+			await reaction_requestAnswered(reaction, member, True, requests=requests, vectorstore=vectorstore)
+			return
+		await reaction_newOrUpdateRequest(reaction, member, requests=requests)
+	# If it is on a request message...
+	else:
+		# ...and it's not one of the two accepted emojis, or not by the recipient, ignore
+		if reaction.emoji not in {"✅", "❌"} or (record := requests[reaction.message]) is None or member.id != record["recipientID"]:
+			return
+		await reaction_requestAnswered(reaction, member, reaction.emoji == "✅", requests=requests, vectorstore=vectorstore)
+
 
 bot.run(DISCORD_BOT_TOKEN.get_secret_value())

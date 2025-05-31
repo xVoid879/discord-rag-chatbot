@@ -906,3 +906,4 @@ FodyWeavers.xsd
 
 ~noU*
 *.png
+data/*

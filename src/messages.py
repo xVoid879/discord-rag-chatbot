@@ -6,6 +6,7 @@ from src.components.ai import AI
 from src.components.cache import Cache
 from src.components.cooldown import Cooldown
 from src.components.group import Group
+from src.components.output import replyWithinCharacterLimit
 from src.components.vectorstore import Vectorstore
 # from typing import Any, Coroutine, Iterable
 
@@ -48,18 +49,16 @@ async def message_ask(
 	# Check cooldown
 	if cooldown is not None:
 		if (remainingCooldown := cooldown.getRemainingTime()) > 0.:
-			await message.reply(COOLDOWN_MESSAGE + f" ({remainingCooldown:.2g} seconds remaining)", mention_author=False)
+			await replyWithinCharacterLimit(message, COOLDOWN_MESSAGE + f" ({remainingCooldown:.2g} seconds remaining)", 2000)
 			await message.add_reaction("❌")
 			return
 	# Check cache
 	if cache is not None:
 		if response := cache.getExactMatch(query):
-			await message.reply(response + f"\n-# Cached response. {AI_DISCLAIMER}", mention_author=False)
-			# await message.add_reaction("✅")
+			await replyWithinCharacterLimit(message, response + f"\n-# Cached response. {AI_DISCLAIMER}", 2000)
 			return
 		if response := cache.getSemanticMatch(query):
-			await message.reply(response + f"\n-# Cached response. {AI_DISCLAIMER}", mention_author=False)
-			# await message.add_reaction("✅")
+			await replyWithinCharacterLimit(message, response + f"\n-# Cached response. {AI_DISCLAIMER}", 2000)
 			return
 	# Retrieve context from vectorstore
 	context = "\n- ".join(text for text, _ in vectorstore.query(query)) if vectorstore is not None else None
@@ -67,15 +66,13 @@ async def message_ask(
 	if context:
 		context = "- " + context
 	elif AI_ERROR_IF_NO_CONTEXT:
-		await message.reply(AI_ERROR_IF_NO_CONTEXT, mention_author=False)
-		# await message.add_reaction("✅")
+		await replyWithinCharacterLimit(message, AI_ERROR_IF_NO_CONTEXT, 2000)
 		return
 
 	# Retrieve AI response
 	response = ai.query(query, context) if AI_ENABLE else "Here are the relevant messages in my corpus relating to your question:\n" + ("- None" if context is None else context)
 	# Send message to user, and cache for future
-	await message.reply(response + f"\n-# {AI_DISCLAIMER}", mention_author=False)
-	# await message.add_reaction("✅")
+	await replyWithinCharacterLimit(message, response + f"\n-# {AI_DISCLAIMER}", 2000)
 	if cache is not None:
 		cache[query] = (response, cache.embed(query))
 

@@ -1,5 +1,7 @@
 # import faiss
 # from fastembed import TextEmbedding
+from src.components.output import splitIntoSentences
+
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import FAISS
 import os
@@ -14,13 +16,16 @@ class Vectorstore:
 	_vectorstore: FAISS
 	_minimumRelevance: float
 	_filepath: str | None
+	_segmentSize: int | None
 
-	def __init__(self, filepath: str | None = None, minimumRelevance: float | None = None) -> None:
+	def __init__(self, filepath: str | None = None, minimumRelevance: float | None = None, segmentSize: int | None = None) -> None:
 		"""Initialization."""
 		if filepath is not None and (not isinstance(filepath, str) or not os.path.isfile(filepath)): raise RuntimeError(f"Invalid or nonexistent path provided: {filepath}")
 		self._filepath = filepath
 		if minimumRelevance is not None and (not isinstance(minimumRelevance, (int, float)) or minimumRelevance < 0. or minimumRelevance > 1.): raise ValueError(f"Invalid minimum relevance provided: {minimumRelevance}")
 		self._minimumRelevance = 0. if minimumRelevance is None else minimumRelevance
+		if segmentSize is not None and (not isinstance(segmentSize, int) or segmentSize <= 0): raise ValueError(f"Invalid segment size provided: {segmentSize}")
+		self._segmentSize = segmentSize
 
 		# self._vectorstore = faiss.read_index(filepath) if path else faiss.IndexFlatL2(embeddingDimension)
 		if not self.load(filepath):
@@ -38,7 +43,7 @@ class Vectorstore:
 		# embedding = list(EMBEDDING_MODEL.embed(text))[0]
 		# self._vectorstore.add(embedding)
 		# ...?
-		allTexts = [text] if isinstance(text, str) else list(text)
+		allTexts = [segment for t in ([text] if isinstance(text, str) else list(text)) for segment in (splitIntoSentences(t, self._segmentSize, True) if self._segmentSize is not None else [t]) ]
 		self._vectorstore.add_texts(allTexts)
 		return len(allTexts)
 	

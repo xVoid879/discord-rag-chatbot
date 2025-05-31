@@ -1,6 +1,7 @@
 from discord import Member, Reaction
 
 from Settings import *
+from src.components.output import replyWithinCharacterLimit
 from src.components.requests import Requests
 from src.components.vectorstore import Vectorstore
 
@@ -23,11 +24,11 @@ async def reaction_newOrUpdateRequest(reaction: Reaction, member: Member, *, req
 		break
 	# Otherwise if no pending request exists for the recipient:
 	else:
-		requestMessage = await reaction.message.reply(requests.populateMessage({
+		requestMessage = await replyWithinCharacterLimit(reaction.message, requests.populateMessage({
 			"recipientID": reaction.message.author.id,
 			"requesterIDs": [member.id],
 			"desiredMessageLinks": [reaction.message.jump_url]
-		}), mention_author=False)
+		}), 2000)
 		await requestMessage.add_reaction("✅")
 		await requestMessage.add_reaction("❌")
 		requests.add(requestMessage, reaction.message.author.id, [member.id], [reaction.message.jump_url])

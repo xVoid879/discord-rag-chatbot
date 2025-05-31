@@ -24,7 +24,7 @@ ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS)
 cooldown = Cooldown(COOLDOWN_DURATION, COOLDOWN_CHECK_INTERVAL, COOLDOWN_MAX_QUERIES_BEFORE_ACTIVATION) if COOLDOWN_DURATION is not None and COOLDOWN_DURATION > 0. else None
 cache = Cache(CACHE_MAX_SIZE, CACHE_EXPIRATION_TIME, CACHE_SEMANTIC_SIMILARITY_THRESHOLD) if CACHE_MAX_SIZE > 0 else None
 requests = Requests(REQUESTS_ADDITION_MESSAGE, REQUESTS_ADDITION_KEYWORDS)
-vectorstore = Vectorstore(VECTORSTORE_FILEPATH, VECTORSTORE_CONTEXT_RELEVANCE_THRESHOLD)
+vectorstore = Vectorstore(VECTORSTORE_FILEPATH, VECTORSTORE_CONTEXT_RELEVANCE_THRESHOLD, VECTORSTORE_SEGMENT_SIZE)
 trustedGroup = Group(DISCORD_TRUSTED_IDS_FILEPATH)
 blockedGroup = Group(DISCORD_BLOCKED_IDS_FILEPATH)
 
@@ -48,25 +48,25 @@ async def on_message(message: Message) -> None:
 	commandSubcommandString = originalInput.split(maxsplit=3)
 	# If bot was pinged without any other commands:
 	if not commandSubcommandString:
-		await message.reply(DISCORD_HELP_MESSAGE, mention_author=False)
+		await replyWithinCharacterLimit(message, DISCORD_HELP_MESSAGE, 2000)
 		return
 	# Otherwise decipher command:
 	argumentsCount = len(commandSubcommandString)
 	match command := commandSubcommandString[0].casefold():
 		case "addtext":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
 		case "block":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=blockedGroup)
 		case "distrust":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "hasrole":
-			if argumentsCount < 3: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 3: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			else:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
@@ -74,9 +74,9 @@ async def on_message(message: Message) -> None:
 					case "trusted":
 						await message_isin(message, commandSubcommandString[1], obj=trustedGroup)
 					case _:
-						await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+						await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 		case "load":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -87,15 +87,15 @@ async def on_message(message: Message) -> None:
 					case "vectorstore":
 						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
-						await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+						await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 		case "ping":
 			await message_ping(message, bot=bot)
 		# case "removetext":
-		# 	if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+		# 	if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 		# 	elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 		# 	else: await message_remove(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
 		case "save":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -106,13 +106,13 @@ async def on_message(message: Message) -> None:
 					case "vectorstore":
 						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
-						await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+						await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 		case "trust":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "unblock":
-			if argumentsCount < 2: await message.reply(DISCORD_COMMAND_DOCUMENTATION[command], mention_author=False)
+			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=blockedGroup)
 		case _:

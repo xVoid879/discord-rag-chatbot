@@ -25,7 +25,7 @@ CACHE_MAX_SIZE: float = 100
 CACHE_EXPIRATION_TIME: float | None = 3600.
 # The minimum cosine similarity cache entries must have to qualify as semantically-similar.
 # Must be None or in the range [0, 1], with 0/None imposing no constraints, and 1 disabling semantic caching entirely.
-CACHE_SEMANTIC_SIMILARITY_THRESHOLD: float | None = 0.95
+CACHE_SEMANTIC_SIMILARITY_THRESHOLD: float | None = 0.96
 
 """Cooldown settings"""
 # The number of seconds the cooldown lasts for when triggered. Disables cooldowns if set to None or <= 0.
@@ -51,13 +51,13 @@ DISCORD_COMMAND_DOCUMENTATION: dict[str, str] = {
 	"": "`[query]`: Looks up and generates an answer for the provided query.",
 	"ping": "`ping`: Returns my latency.",
 	"hasrole": "`hasrole [blocked|trusted] [user ID]`: Returns whether a user is blocked/trusted, respectively.",
-	"addtext": '`addtext "[text]"`: Adds the provided text to my vectorstore.',
-	"save": "`save [blocked|trusted|vectorstore] [filepath (optional)]`: Saves the blocked list/trusted list/vectorstore to the provided filepath, or their last-used filepath if none is provided.",
-	"load": "`load [blocked|trusted|vectorstore] [filepath (optional)]`: Loads the blocked list/trusted list/vectorstore from the provided filepath, or their last-used filepath if none is provided.",
-	"block": "`block [user ID #1] ... [user ID #n]`/`unblock [user ID #1] ... [user ID #n]`: Adds user(s) to the blocked group.",
-	"unblock": "`unblock [user ID #1] ... [user ID #n]`: Removes user(s) from the blocked group.",
-	"trust": "`trust [user ID #1] ... [user ID #n]`: Adds user(s) to the trusted group.",
-	"distrust": "`distrust [user ID #1] ... [user ID #n]`: Removes user(s) from the trusted group.",
+	"addtext": '`addtext "[text]"` *(Trusted only)*: Adds the provided text to my vectorstore.',
+	"save": "`save [blocked|trusted|vectorstore] [filepath (optional)]` *(Trusted only)*: Saves the blocked list/trusted list/vectorstore to the provided filepath, or their last-used filepath if none is provided.",
+	"load": "`load [blocked|trusted|vectorstore] [filepath (optional)]` *(Trusted only)*: Loads the blocked list/trusted list/vectorstore from the provided filepath, or their last-used filepath if none is provided.",
+	"block": "`block [user ID #1] ... [user ID #n]`/`unblock [user ID #1] ... [user ID #n]` *(Trusted only)*: Adds user(s) to the blocked group.",
+	"unblock": "`unblock [user ID #1] ... [user ID #n]` *(Trusted only)*: Removes user(s) from the blocked group.",
+	"trust": "`trust [user ID #1] ... [user ID #n]` *(Trusted only)*: Adds user(s) to the trusted group.",
+	"distrust": "`distrust [user ID #1] ... [user ID #n]` *(Trusted only)*: Removes user(s) from the trusted group.",
 }
 DISCORD_HELP_MESSAGE: str = """Hi! I'm a chatbot designed to answer basic questions about Minecraft seedfinding, seedcracking, coordinate finding, etc.
 **I am still under development and do not have full functionality yet.**
@@ -84,5 +84,6 @@ VECTORSTORE_FILEPATH: str | None = os.path.join(".", "data", "index.faiss")
 # The minimum embedding distance that stored texts must have to be considered.
 # Must be None or in the range [0, 1], with 0/None imposing no constraints, and 1 disabling anything but character-for-character matches.
 VECTORSTORE_CONTEXT_RELEVANCE_THRESHOLD: float | None = 0.55
+VECTORSTORE_SEGMENT_SIZE: int | None = 512
 
 del os

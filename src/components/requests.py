@@ -1,5 +1,8 @@
 from discord import Message
 from typing import ItemsView, Iterable, TypedDict
+
+from src.translations import RequestsTexts
+from Settings import LANGUAGE
 # from typing import Literal, TypeAlias
 
 class RequestData(TypedDict):
@@ -20,7 +23,7 @@ class Requests:
 		# self.keywords = {keyword: attribute for keyword, attribute in (
 		# 	keywords if keywords is not None else ((f"[{attr}]", attr) for attr in RequestData.__annotations__.keys())
 		# ) if keyword in message and attribute in RequestData.__annotations__.keys()}
-		# if keywords is not None and len(self.keywords) < len(keywords): raise ValueError(f"Some provided keywords could not be found in provided message: {set(keywords) - set(self.keywords)}")
+		# if keywords is not None and len(self.keywords) < len(keywords): raise ValueError(RequestsTexts.MISSING_KEYWORDS[LANGUAGE].replace("[missing]", f"{set(keywords) - set(self.keywords)}"))
 		
 		self._requests = {}
 
@@ -42,14 +45,14 @@ class Requests:
 		if requestMessage in self._requests:
 			# ...except for recipient ID, which is immutable
 			if recipientID is not None and recipientID != self._requests[requestMessage]["recipientID"]:
-				raise ValueError("Recipient ID cannot be changed.")
+				raise ValueError(RequestsTexts.RECIPIENT_ID_UNCHANGEABLE[LANGUAGE])
 			self._requests[requestMessage]["requesterIDs"] += [r for r in requesterIDsList if r not in self._requests[requestMessage]["requesterIDs"]]
 			self._requests[requestMessage]["desiredMessageLinks"] += [l for l in desiredMessageLinksList if l not in self._requests[requestMessage]["desiredMessageLinks"]]
 		# Otherwise create a new entry
 		else:
 			# Recipient ID cannot be None
 			if recipientID is None:
-				raise ValueError("Recipient ID cannot be recorded as None.")
+				raise ValueError(RequestsTexts.RECIPIENT_ID_MUST_EXIST[LANGUAGE])
 			self._requests[requestMessage] = {
 				"recipientID": recipientID,
 				"requesterIDs": requesterIDsList,

@@ -1,10 +1,11 @@
 # import faiss
 # from fastembed import TextEmbedding
-from src.components.output import splitIntoSentences
+from src.components.output import Output
 
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import FAISS
 import os
+from sys import argv
 from typing import Iterable
 
 # EMBEDDING_MODEL = TextEmbedding()
@@ -31,7 +32,7 @@ class Vectorstore:
 		if not self.load(filepath):
 			self._vectorstore = FAISS.from_texts([""], EMBEDDING_MODEL)
 
-	def query(self, query: str, maxResults: int = 5) -> list[tuple[str, float]]:
+	def query(self, query: str, maxResults: int = 4) -> list[tuple[str, float]]:
 		"""Returns the most relevant results (text + score pairs) for the provided query, at or above the originally-specified relevance threshold."""
 		# embedding = list(EMBEDDING_MODEL.embed(query))[0]
 		# scores, indices = self._vectorstore.search(embedding, maxResults)
@@ -43,7 +44,7 @@ class Vectorstore:
 		# embedding = list(EMBEDDING_MODEL.embed(text))[0]
 		# self._vectorstore.add(embedding)
 		# ...?
-		allTexts = [segment for t in ([text] if isinstance(text, str) else list(text)) for segment in (splitIntoSentences(t, self._segmentSize, True) if self._segmentSize is not None else [t]) ]
+		allTexts = [segment for t in ([text] if isinstance(text, str) else list(text)) for segment in (Output.splitIntoSentences(t, self._segmentSize, True) if self._segmentSize is not None else [t]) ]
 		self._vectorstore.add_texts(allTexts)
 		return len(allTexts)
 	
@@ -57,6 +58,7 @@ class Vectorstore:
 	
 	def save(self, filepath: str | None = None) -> bool:
 		"""Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
+		if filepath is not None and not self.verify(filepath): return False
 		if not filepath:
 			if not self._filepath: return False # No saved filepath exists
 			filepath = self._filepath # Otherwise use saved filepath
@@ -69,6 +71,7 @@ class Vectorstore:
 	
 	def load(self, filepath: str | None = None) -> bool:
 		"""Loads the vectorstore from the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
+		if filepath is not None and not self.verify(filepath): return False
 		if not filepath:
 			if not self._filepath: return False # No saved filepath exists
 			filepath = self._filepath # Otherwise use saved filepath
@@ -78,3 +81,9 @@ class Vectorstore:
 		# self._vectorstore = faiss.read_index(filepath)
 		self._vectorstore = FAISS.load_local(os.path.dirname(filepath), EMBEDDING_MODEL, os.path.splitext(os.path.basename(filepath))[0], allow_dangerous_deserialization=True)
 		return True
+	
+	def verify(self, proposedPath: str) -> bool:
+		"""Attempts to ensure the proposed filepath will not cause damage."""
+		currentDirectory = os.path.abspath(os.path.dirname(argv[0]))
+		canonicalPath = os.path.abspath(proposedPath)
+		return os.path.commonpath((canonicalPath, currentDirectory)).startswith(currentDirectory) and (not os.path.exists(canonicalPath) or (self._filepath is not None and os.path.samefile(proposedPath, self._filepath)))

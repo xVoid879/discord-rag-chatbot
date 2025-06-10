@@ -4,6 +4,9 @@ from fastembed.common.types import NumpyArray
 from math import sqrt
 from numpy import ndarray
 
+from src.translations import CacheTexts
+from Settings import LANGUAGE
+
 class Cache:
 	_cache: TTLCache[str, tuple[str, NumpyArray]] # query: (response, query embedding)
 	_embeddingModel: TextEmbedding
@@ -11,17 +14,17 @@ class Cache:
 
 	def __init__(self, maxSize: float, expirationTime: float | None = None, semanticSimilarityThreshold: float | None = 0.) -> None:
 		"""Initialization."""
-		if not isinstance(maxSize, (int, float)) or maxSize <= 0.: raise ValueError(f"Invalid maximum cache size provided: {maxSize}")
-		if expirationTime is not None and (not isinstance(expirationTime, (int, float)) or expirationTime <= 0.): raise ValueError(f"Invalid cache expiration time provided: {expirationTime}")
+		if not isinstance(maxSize, (int, float)) or maxSize <= 0.: raise ValueError(CacheTexts.INVALID_MAX_SIZE[LANGUAGE].replace("[size]", f"{maxSize}"))
+		if expirationTime is not None and (not isinstance(expirationTime, (int, float)) or expirationTime <= 0.): raise ValueError(CacheTexts.INVALID_EXPIRATION_TIME[LANGUAGE].replace("[time]", f"{expirationTime}"))
 		self._cache = TTLCache(maxSize, float("inf") if expirationTime is None else expirationTime)
 		self._embeddingModel = TextEmbedding()
-		if semanticSimilarityThreshold is not None and (not isinstance(semanticSimilarityThreshold, (int, float)) or semanticSimilarityThreshold < 0. or semanticSimilarityThreshold > 1.): raise ValueError(f"Invalid semantic similarity threshold provided: {semanticSimilarityThreshold}")
+		if semanticSimilarityThreshold is not None and (not isinstance(semanticSimilarityThreshold, (int, float)) or semanticSimilarityThreshold < 0. or semanticSimilarityThreshold > 1.): raise ValueError(CacheTexts.INVALID_SIMILARITY_THRESHOLD[LANGUAGE].replace("[threshold]", f"{semanticSimilarityThreshold}"))
 		self._semanticSimilarityThreshold = 0. if semanticSimilarityThreshold is None else semanticSimilarityThreshold
 
 	def __setitem__(self, key: str, value: tuple[str, NumpyArray]) -> None:
 		"""Associates the provided key to the provided value in the cache."""
-		if not isinstance(key, str): raise ValueError(f"Invalid key provided: {key}")
-		if not isinstance(value, tuple) or len(value) != 2 or not isinstance(value[0], str) or not isinstance(value[1], ndarray): raise ValueError(f"Invalid value provided: {value}")
+		if not isinstance(key, str): raise ValueError(CacheTexts.INVALID_KEY[LANGUAGE].replace("[key]", f"{key}"))
+		if not isinstance(value, tuple) or len(value) != 2 or not isinstance(value[0], str) or not isinstance(value[1], ndarray): raise ValueError(CacheTexts.INVALID_VALUE[LANGUAGE].replace("[value]", f"{value}"))
 		self._cache.__setitem__(key, value)
 
 	@staticmethod

@@ -1,5 +1,5 @@
 from discord import Intents, Member, Message, Reaction
-from discord.ext.commands import Bot
+from discord.ext.commands import Bot # type: ignore
 from pydantic import SecretStr
 from sys import argv
 import os
@@ -7,26 +7,28 @@ import os
 from Settings import *
 from src.messages import *
 from src.reactions import *
+from src.translations import MainTexts, RequestsTexts
 
-if len(argv) < 1: raise RuntimeError("No arguments found when launching the chatbot.")
-CURRENT_DIRECTORY = os.path.dirname(argv[0])
-if len(argv) < 2: raise RuntimeError("No Discord bot token provided (must be 1st argument).")
+if len(argv) < 1: raise RuntimeError(MainTexts.NO_ARGUMENTS_FOUND[LANGUAGE])
+CURRENT_DIRECTORY = os.path.abspath(os.path.dirname(argv[0]))
+if len(argv) < 2: raise RuntimeError(MainTexts.NO_DISCORD_BOT_TOKEN[LANGUAGE])
 DISCORD_BOT_TOKEN = SecretStr(argv[1])
-if len(argv) < 3: raise RuntimeError("No Groq API key provided (must be 2nd argument).")
-AI_API_KEY = SecretStr(argv[2])
+AI_API_KEY = SecretStr(argv[2]) if len(argv) >= 3 else None
 
 intents = Intents.default()
 intents.message_content = True
 bot = Bot(command_prefix="", intents=intents)
 
 
-ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS)
+ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS) if AI_API_KEY and AI_SYSTEM_PROMPT else None
 cooldown = Cooldown(COOLDOWN_DURATION, COOLDOWN_CHECK_INTERVAL, COOLDOWN_MAX_QUERIES_BEFORE_ACTIVATION) if COOLDOWN_DURATION is not None and COOLDOWN_DURATION > 0. else None
 cache = Cache(CACHE_MAX_SIZE, CACHE_EXPIRATION_TIME, CACHE_SEMANTIC_SIMILARITY_THRESHOLD) if CACHE_MAX_SIZE > 0 else None
-requests = Requests(REQUESTS_ADDITION_MESSAGE, REQUESTS_ADDITION_KEYWORDS)
+permissionRequests = Requests(RequestsTexts.PERMISSION_REQUEST[LANGUAGE], REQUESTS_ADDITION_KEYWORDS)
+vectorstoreRequests = Requests(RequestsTexts.VECTORSTORE_REQUEST[LANGUAGE], REQUESTS_ADDITION_KEYWORDS)
 vectorstore = Vectorstore(VECTORSTORE_FILEPATH, VECTORSTORE_CONTEXT_RELEVANCE_THRESHOLD, VECTORSTORE_SEGMENT_SIZE)
 trustedGroup = Group(DISCORD_TRUSTED_IDS_FILEPATH)
 blockedGroup = Group(DISCORD_BLOCKED_IDS_FILEPATH)
+permittingGroup = Group(DISCORD_PERMITTING_IDS_FILEPATH)
 
 @bot.event
 async def on_message(message: Message) -> None:
@@ -48,7 +50,7 @@ async def on_message(message: Message) -> None:
 	commandSubcommandString = originalInput.split(maxsplit=3)
 	# If bot was pinged without any other commands: print help message
 	if not commandSubcommandString:
-		await Output.replyWithinCharacterLimit(message, DISCORD_HELP_MESSAGE)
+		await message_help(message)
 		return
 	# Otherwise decipher command:
 	argumentsCount = len(commandSubcommandString)
@@ -70,9 +72,11 @@ async def on_message(message: Message) -> None:
 			else:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
-						await message_isin(message, commandSubcommandString[1], obj=blockedGroup)
+						await message_isin(message, commandSubcommandString[2], obj=blockedGroup)
 					case "trusted":
-						await message_isin(message, commandSubcommandString[1], obj=trustedGroup)
+						await message_isin(message, commandSubcommandString[2], obj=trustedGroup)
+					case "permitting":
+						await message_isin(message, commandSubcommandString[2], obj=permittingGroup)
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "load":
@@ -81,30 +85,38 @@ async def on_message(message: Message) -> None:
 			else:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
-						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=blockedGroup)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=blockedGroup)
 					case "trusted":
-						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=trustedGroup)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
+					case "permitting":
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permittingGroup)
 					case "vectorstore":
-						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+		case "permit":
+			await reaction_newOrUpdateRequest(message, message.author, requests=permissionRequests)
 		case "ping":
 			await message_ping(message, bot=bot)
 		# case "removetext":
 		# 	if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		# 	elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 		# 	else: await message_remove(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
+		case "revoke":
+			await message_remove(message, str(message.author.id), obj=permittingGroup)
 		case "save":
 			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
-						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=blockedGroup)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=blockedGroup)
 					case "trusted":
-						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=trustedGroup)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
+					case "permitting":
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permittingGroup)
 					case "vectorstore":
-						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "trust":
@@ -122,20 +134,23 @@ async def on_message(message: Message) -> None:
 @bot.event
 async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 	# If the reaction is not on a request message...
-	if reaction.message not in requests:
+	if all((reaction.message not in vectorstoreRequests, reaction.message not in permissionRequests)):
 		# ...and it's not the designated emoji, or by a non-trusted user, ignore
+		# TODO: Also ignore if recipient is not in the server
 		if reaction.emoji != DISCORD_REQUEST_ADDITION_EMOJI or member.id not in trustedGroup:
 			return
-		if reaction.message.author.id == member.id:
-			await reaction_requestAnswered(reaction, member, True, requests=requests, vectorstore=vectorstore)
+		if reaction.message.author.id == member.id or reaction.message.author.id in permittingGroup:
+			await reaction_requestAnswered(reaction, True, requests=vectorstoreRequests, obj=vectorstore)
 			return
-		await reaction_newOrUpdateRequest(reaction, member, requests=requests)
+		await reaction_newOrUpdateRequest(reaction, member, requests=vectorstoreRequests)
 	# If it is on a request message...
 	else:
 		# ...and it's not one of the two accepted emojis, or not by the recipient, ignore
-		if reaction.emoji not in {"✅", "❌"} or (record := requests[reaction.message]) is None or member.id != record["recipientID"]:
-			return
-		await reaction_requestAnswered(reaction, member, reaction.emoji == "✅", requests=requests, vectorstore=vectorstore)
+		if reaction.emoji not in {"✅", "❌"}: return
+		# Otherwise check both the vectorstore requests list and the permission requests list
+		for requestsList, obj in ((vectorstoreRequests, vectorstore), (permissionRequests, permittingGroup)):
+			if (record := requestsList[reaction.message]) is None or member.id != record["recipientID"]: continue
+			await reaction_requestAnswered(reaction, reaction.emoji == "✅", requests=requestsList, obj=obj)
 
 
 bot.run(DISCORD_BOT_TOKEN.get_secret_value())

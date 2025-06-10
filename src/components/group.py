@@ -1,4 +1,5 @@
 import os
+from sys import argv
 from typing import Iterable
 
 class Group:
@@ -14,7 +15,7 @@ class Group:
 			self._members = set(initialMembers) if initialMembers is not None else set()
 	
 	def add(self, memberID: int | Iterable[int]) -> int:
-		"""Adds texts to the vectorstore. Returns the number of documents added."""
+		"""Adds texts to the group. Returns the number of users added."""
 		count = 0
 		for mID in ([memberID] if isinstance(memberID, int) else memberID):
 			self._members.add(mID)
@@ -22,7 +23,7 @@ class Group:
 		return count
 	
 	def remove(self, memberID: int | Iterable[int]) -> int:
-		"""Removes texts from the vectorstore. Returns the number of documents removed.
+		"""Removes texts from the group. Returns the number of users removed.
 		Not yet implemented."""
 		count = 0
 		for mID in ([memberID] if isinstance(memberID, int) else memberID):
@@ -38,6 +39,7 @@ class Group:
 	
 	def save(self, filepath: str | None = None) -> bool:
 		"""Saves the group to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
+		if filepath is not None and not self.verify(filepath): return False
 		if not filepath:
 			if not self._filepath: return False # No saved filepath exists
 			filepath = self._filepath # Otherwise use saved filepath
@@ -51,6 +53,7 @@ class Group:
 	
 	def load(self, filepath: str | None = None) -> bool:
 		"""Loads the group from the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
+		if filepath is not None and not self.verify(filepath): return False
 		if not filepath:
 			if not self._filepath: return False # No saved filepath exists
 			filepath = self._filepath # Otherwise use saved filepath
@@ -60,3 +63,9 @@ class Group:
 		with open(filepath, mode="r") as f:
 			self._members = {int(entry) for entry in f.readlines()}
 		return True
+	
+	def verify(self, proposedPath: str) -> bool:
+		"""Attempts to ensure the proposed filepath will not cause damage."""
+		currentDirectory = os.path.abspath(os.path.dirname(argv[0]))
+		canonicalPath = os.path.abspath(proposedPath)
+		return os.path.commonpath((canonicalPath, currentDirectory)).startswith(currentDirectory) and (not os.path.exists(canonicalPath) or (self._filepath is not None and os.path.samefile(proposedPath, self._filepath)))

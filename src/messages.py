@@ -1,5 +1,5 @@
 from discord import Message
-from discord.ext.commands import Bot
+from discord.ext.commands import Bot # type: ignore
 
 from Settings import *
 from src.components.ai import AI
@@ -8,6 +8,7 @@ from src.components.cooldown import Cooldown
 from src.components.group import Group
 from src.components.output import Output
 from src.components.vectorstore import Vectorstore
+from src.translations import MessagesTexts, getLanguagePlural
 # from typing import Any, Coroutine, Iterable
 
 # class Command:
@@ -23,14 +24,14 @@ async def message_add(message: Message, *entries: str, obj: Group | Vectorstore)
 	reformattedEntries = list(entries)
 	if isinstance(obj, Vectorstore):
 		if len([word for text in entries for word in text.split()]) == len(entries):
-			await message.reply(f"All texts received solely consisted of individual words. Make sure to wrap your texts in quotation marks.", mention_author=False)
+			await Output.replyWithinCharacterLimit(message, MessagesTexts.ADD__SINGLE_WORDS_ONLY[LANGUAGE])
 			await message.add_reaction("❌")
 			return
 	elif isinstance(obj, Group):
 		reformattedEntries = [int(e.strip("<@!> ")) for e in entries]
 
 	if (savedCount := obj.add(reformattedEntries)) < len(entries):
-		await message.reply(f"{len(reformattedEntries) - savedCount} text{'' if len(reformattedEntries) - savedCount == 1 else 's'} failed to be added.", mention_author=False)
+		await Output.replyWithinCharacterLimit(message, MessagesTexts.ADD__ERROR[LANGUAGE].replace("count", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
 		await message.add_reaction("❌")
 		return
 	await message.add_reaction("✅")
@@ -40,7 +41,7 @@ async def message_ask(
 	message: Message,
 	query: str,
 	*,
-	ai: AI,
+	ai: AI | None = None,
 	cache: Cache | None = None,
 	cooldown: Cooldown | None = None,
 	vectorstore: Vectorstore | None = None
@@ -49,32 +50,36 @@ async def message_ask(
 	# Check cooldown
 	if cooldown is not None:
 		if (remainingCooldown := cooldown.getRemainingTime()) > 0.:
-			await Output.replyWithinCharacterLimit(message, COOLDOWN_MESSAGE + f" ({remainingCooldown:.2g} seconds remaining)")
+			await Output.replyWithinCharacterLimit(message, MessagesTexts.ASK__COOLDOWN[LANGUAGE].replace("[seconds]", f"{remainingCooldown:.2g}"))
 			await message.add_reaction("❌")
 			return
 	# Check cache
 	if cache is not None:
 		if response := cache.getExactMatch(query):
-			await Output.replyWithinCharacterLimit(message, response + f"\n-# Cached response. {AI_DISCLAIMER}")
+			await Output.replyWithinCharacterLimit(message, response + "\n-# " + MessagesTexts.ASK__CACHED_RESPONSE[LANGUAGE] + (" " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
 			return
 		if response := cache.getSemanticMatch(query):
-			await Output.replyWithinCharacterLimit(message, response + f"\n-# Cached response. {AI_DISCLAIMER}")
+			await Output.replyWithinCharacterLimit(message, response + "\n-# " + MessagesTexts.ASK__CACHED_RESPONSE[LANGUAGE] + (" " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
 			return
 	# Retrieve context from vectorstore
-	context = "\n- ".join(text for text, _ in vectorstore.query(query)) if vectorstore is not None else None
+	context = "\n\n-------------".join(f"__(Estimated relevance: **{score:.2%}**)__\n{text}".strip() for text, score in vectorstore.query(query)) if vectorstore is not None else MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]
+	if context and context != MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]:
+		context = "\n-------------" + context
 	# If context is required, and no context is found, return error
-	if context:
-		context = "- " + context
-	elif AI_ERROR_IF_NO_CONTEXT:
-		await Output.replyWithinCharacterLimit(message, AI_ERROR_IF_NO_CONTEXT)
+	elif AI_REQUIRE_CONTEXT:
+		await Output.replyWithinCharacterLimit(message, MessagesTexts.ASK__ERROR_IF_NO_CONTEXT[LANGUAGE])
 		return
 
 	# Retrieve AI response
-	response = ai.query(query, context) if AI_ENABLE else "Here are the relevant messages in my corpus relating to your question:\n" + ("- None" if context is None else context)
+	response = ai.query(query, context) if ai is not None else MessagesTexts.ASK__RETURN_VECTORSTORE[LANGUAGE].replace("[messages]", context)
 	# Send message to user, and cache for future
-	await Output.replyWithinCharacterLimit(message, response + f"\n-# {AI_DISCLAIMER}")
+	await Output.replyWithinCharacterLimit(message, response + ("\n-# " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
 	if cache is not None:
 		cache[query] = (response, cache.embed(query))
+
+
+async def message_help(message: Message) -> None:
+	await Output.replyWithinCharacterLimit(message, MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- {description}" for description in DISCORD_COMMAND_DOCUMENTATION.values())))
 
 
 async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
@@ -83,19 +88,19 @@ async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
 	if isinstance(obj, Group):
 		reformattedEntry = int(entry.strip("<@!> "))
 
-	if reformattedEntry in obj:
-		await message.add_reaction("🇾")
-		await message.add_reaction("🇪")
-		await message.add_reaction("🇸")
-	else:
-		await message.add_reaction("🇳")
-		await message.add_reaction("🇴")
+	for emote in (MessagesTexts.IS_IN__FOUND_EMOTES[LANGUAGE] if reformattedEntry in obj else MessagesTexts.IS_IN__NOT_FOUND_EMOTES[LANGUAGE]):
+		await message.add_reaction(emote)
 
 
-async def message_load(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore) -> None:
+async def message_load(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore, trustedGroup: Group | None = None) -> None:
 	"""(Privileged command) Loads the object from the provided filepath, or the last-used filepath if none is provided."""
+	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
+		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
+		trustedGroup.remove(message.author.id)
+		await message.add_reaction("❌")
+		return
 	if not obj.load(filepath):
-		await message.reply(f"An error occurred while loading the object.", mention_author=False)
+		await Output.replyWithinCharacterLimit(message, MessagesTexts.LOAD__ERROR[LANGUAGE])
 		await message.add_reaction("❌")
 		return
 	await message.add_reaction("✅")
@@ -103,7 +108,7 @@ async def message_load(message: Message, filepath: str | None = None, *, obj: Gr
 
 async def message_ping(message: Message, *, bot: Bot) -> None:
 	"""(Privileged command) Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided."""
-	await message.reply(f"My latency is {bot.latency:.2g} seconds.", mention_author=False)
+	await Output.replyWithinCharacterLimit(message, MessagesTexts.PING[LANGUAGE].replace("[latency]", f"{bot.latency:.2g}"))
 
 
 async def message_remove(message: Message, *entries: str, obj: Group | Vectorstore) -> None:
@@ -111,27 +116,32 @@ async def message_remove(message: Message, *entries: str, obj: Group | Vectorsto
 	reformattedEntries = list(entries)
 	if isinstance(obj, Vectorstore):
 		if len([word for text in entries for word in text.split()]) == len(entries):
-			await message.reply(f"All texts received solely consisted of individual words. Make sure to wrap your texts in quotation marks.", mention_author=False)
+			await Output.replyWithinCharacterLimit(message, MessagesTexts.REMOVE__SINGLE_WORDS_ONLY[LANGUAGE])
 			await message.add_reaction("❌")
 			return
 	elif isinstance(obj, Group):
 		reformattedEntries = [int(e.strip("<@!> ")) for e in entries]
 
 	if (savedCount := obj.remove(reformattedEntries)) < len(entries):
-		await message.reply(f"{len(reformattedEntries) - savedCount} text{'' if len(reformattedEntries) - savedCount == 1 else 's'} failed to be removed.", mention_author=False)
+		await Output.replyWithinCharacterLimit(message, MessagesTexts.REMOVE__ERROR[LANGUAGE].replace("count", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
 		await message.add_reaction("❌")
 		return
 	await message.add_reaction("✅")
 
 
-async def message_save(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore | None = None) -> None:
+async def message_save(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore | None = None, trustedGroup: Group | None = None) -> None:
 	"""(Privileged command) Saves the object to the provided filepath, or the last-used filepath if none is provided."""
 	if obj is None:
-		await message.reply(f"Error: No object exists to save.", mention_author=False)
+		await Output.replyWithinCharacterLimit(message, MessagesTexts.SAVE__NOT_FOUND[LANGUAGE])
+		await message.add_reaction("❌")
+		return
+	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
+		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
+		trustedGroup.remove(message.author.id)
 		await message.add_reaction("❌")
 		return
 	if not obj.save(filepath):
-		await message.reply(f"An error occurred while saving the object.", mention_author=False)
+		await Output.replyWithinCharacterLimit(message, MessagesTexts.SAVE__ERROR[LANGUAGE])
 		await message.add_reaction("❌")
 		return
 	await message.add_reaction("✅")
@@ -139,4 +149,4 @@ async def message_save(message: Message, filepath: str | None = None, *, obj: Gr
 
 async def message_notTrusted(message: Message, command: str) -> None:
 	"""(Privileged command) Returns an error message."""
-	await message.reply(f"Sorry, `{command}` is a trusted-only command.", mention_author=False)
+	await Output.replyWithinCharacterLimit(message, MessagesTexts.NOT_TRUSTED[LANGUAGE].replace("[command]", f"{command}"))

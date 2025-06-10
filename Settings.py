@@ -33,7 +33,7 @@ COOLDOWN_DURATION: float | None = 120.
 # The number of seconds backwards in time the cooldown checker counts messages for.
 COOLDOWN_CHECK_INTERVAL: float = 20.
 # The maximum number of queries that can be made in the above time window before the cooldown triggers.
-COOLDOWN_MAX_QUERIES_BEFORE_ACTIVATION: int = 4
+COOLDOWN_MAX_QUERIES_BEFORE_ACTIVATION: int = 2
 # The message to return should queries be made during a cooldown.
 COOLDOWN_MESSAGE: str = "This application is currently on cooldown: too many queries are being made right now."
 

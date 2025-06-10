@@ -17,7 +17,6 @@ class Requests:
 	def __init__(self, message: str, keywords: dict[str, str] | None = None) -> None:
 		if not message: raise ValueError(f"Invalid message provided: {message}")
 		self.message = message
-		# type: ignore
 		# self.keywords = {keyword: attribute for keyword, attribute in (
 		# 	keywords if keywords is not None else ((f"[{attr}]", attr) for attr in RequestData.__annotations__.keys())
 		# ) if keyword in message and attribute in RequestData.__annotations__.keys()}

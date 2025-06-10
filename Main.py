@@ -46,27 +46,27 @@ async def on_message(message: Message) -> None:
 	if any(originalInput.startswith(otherBotPrefix) for otherBotPrefix in DISCORD_OTHER_BOT_PREFIXES):
 		return
 	commandSubcommandString = originalInput.split(maxsplit=3)
-	# If bot was pinged without any other commands:
+	# If bot was pinged without any other commands: print help message
 	if not commandSubcommandString:
-		await replyWithinCharacterLimit(message, DISCORD_HELP_MESSAGE, 2000)
+		await Output.replyWithinCharacterLimit(message, DISCORD_HELP_MESSAGE)
 		return
 	# Otherwise decipher command:
 	argumentsCount = len(commandSubcommandString)
 	match command := commandSubcommandString[0].casefold():
 		case "addtext":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
 		case "block":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=blockedGroup)
 		case "distrust":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "hasrole":
-			if argumentsCount < 3: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 3: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			else:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
@@ -74,9 +74,9 @@ async def on_message(message: Message) -> None:
 					case "trusted":
 						await message_isin(message, commandSubcommandString[1], obj=trustedGroup)
 					case _:
-						await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "load":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -87,15 +87,15 @@ async def on_message(message: Message) -> None:
 					case "vectorstore":
 						await message_load(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
-						await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "ping":
 			await message_ping(message, bot=bot)
 		# case "removetext":
-		# 	if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+		# 	if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		# 	elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 		# 	else: await message_remove(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
 		case "save":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -106,13 +106,13 @@ async def on_message(message: Message) -> None:
 					case "vectorstore":
 						await message_save(message, os.path.join(CURRENT_DIRECTORY, " ".join(commandSubcommandString[2:])) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
-						await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "trust":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "unblock":
-			if argumentsCount < 2: await replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command], 2000)
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=blockedGroup)
 		case _:

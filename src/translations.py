@@ -99,6 +99,7 @@ class MessagesTexts:
 		"English": """Here are the messages in my corpus most likely to be relevant to your question:
 [messages]""",
 	}
+	# Supported substitutions: [descriptions], [emote]
 	HELP: dict[SupportedLanguages, str] = {
 		"English": """Hi! I'm a chatbot designed to answer basic questions about whatever corpus I was given.
 **I am still under development and do not have full functionality yet.**
@@ -106,7 +107,7 @@ class MessagesTexts:
 I'm primarily interacted with via pinging me. The commands I support are
 [descriptions]
 
-For messages sent after I'm added, trusted users will eventually be able to request to add existing messages to the vectorstore, pending the original author's permission. However, this is still under development."""
+For messages sent after I'm added, trusted users can also request to add existing messages to the vectorstore by reacting with [emote], assuming the original author then gives his/her permission."""
 	}
 	IS_IN__FOUND_EMOTES: dict[SupportedLanguages, Iterable[str]] = {
 		"English": ("🇾", "🇪", "🇸")
@@ -131,9 +132,6 @@ For messages sent after I'm added, trusted users will eventually be able to requ
 	# Supported substitutions: [count], [plural]
 	REMOVE__ERROR: dict[SupportedLanguages, str] = {
 		"English": "[count] object[plural] failed to be removed."
-	}
-	SAVE__NOT_FOUND: dict[SupportedLanguages, str] = {
-		"English": "No object exists to save.",
 	}
 	SAVE__ERROR: dict[SupportedLanguages, str] = {
 		"English": "An error occurred while saving the object.",

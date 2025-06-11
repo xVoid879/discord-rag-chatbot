@@ -1,28 +1,27 @@
 # import faiss
 # from fastembed import TextEmbedding
-from src.components.output import Output
-
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import FAISS
 import os
-from sys import argv
 from typing import Iterable
+
+from src.components.output import Output
+from src.components.saveableClass import SaveableClass
 
 # EMBEDDING_MODEL = TextEmbedding()
 EMBEDDING_MODEL = FastEmbedEmbeddings()
 # embeddingDimension = list(EMBEDDING_MODEL.embed(""))[0].size
 
-class Vectorstore:
+# TODO: Also store and retrieve messages' jump URLs as metadata
+class Vectorstore(SaveableClass):
 	# _vectorstore: faiss.IndexFlatL2
 	_vectorstore: FAISS
 	_minimumRelevance: float
-	_filepath: str | None
 	_segmentSize: int | None
 
 	def __init__(self, filepath: str | None = None, minimumRelevance: float | None = None, segmentSize: int | None = None) -> None:
 		"""Initialization."""
-		if filepath is not None and (not isinstance(filepath, str) or not os.path.isfile(filepath)): raise RuntimeError(f"Invalid or nonexistent path provided: {filepath}")
-		self._filepath = filepath
+		super().__init__(filepath)
 		if minimumRelevance is not None and (not isinstance(minimumRelevance, (int, float)) or minimumRelevance < 0. or minimumRelevance > 1.): raise ValueError(f"Invalid minimum relevance provided: {minimumRelevance}")
 		self._minimumRelevance = 0. if minimumRelevance is None else minimumRelevance
 		if segmentSize is not None and (not isinstance(segmentSize, int) or segmentSize <= 0): raise ValueError(f"Invalid segment size provided: {segmentSize}")
@@ -61,32 +60,14 @@ class Vectorstore:
 	
 	def save(self, filepath: str | None = None) -> bool:
 		"""Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
-		if filepath is not None and not self.verify(filepath): return False
-		if not filepath:
-			if not self._filepath: return False # No saved filepath exists
-			filepath = self._filepath # Otherwise use saved filepath
-		elif not self._filepath:
-			self._filepath = filepath
-		os.makedirs(os.path.dirname(filepath), exist_ok=True)
+		if (filepath := super().getFilepath(filepath)) is None: return False
 		# faiss.write_index(self._vectorstore, filepath)
 		self._vectorstore.save_local(os.path.dirname(filepath), os.path.splitext(os.path.basename(filepath))[0])
 		return True
 	
 	def load(self, filepath: str | None = None) -> bool:
 		"""Loads the vectorstore from the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
-		if filepath is not None and not self.verify(filepath): return False
-		if not filepath:
-			if not self._filepath: return False # No saved filepath exists
-			filepath = self._filepath # Otherwise use saved filepath
-		if not os.path.isfile(filepath): return False
-		if not self._filepath:
-			self._filepath = filepath
+		if (filepath := super().getFilepath(filepath)) is None: return False
 		# self._vectorstore = faiss.read_index(filepath)
 		self._vectorstore = FAISS.load_local(os.path.dirname(filepath), EMBEDDING_MODEL, os.path.splitext(os.path.basename(filepath))[0], allow_dangerous_deserialization=True)
 		return True
-	
-	def verify(self, proposedPath: str) -> bool:
-		"""Attempts to ensure the proposed filepath will not cause damage."""
-		currentDirectory = os.path.abspath(os.path.dirname(argv[0]))
-		canonicalPath = os.path.abspath(proposedPath)
-		return os.path.commonpath((canonicalPath, currentDirectory)).startswith(currentDirectory) and (not os.path.exists(canonicalPath) or (self._filepath is not None and os.path.samefile(proposedPath, self._filepath)))

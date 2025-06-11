@@ -12,11 +12,11 @@ class Cooldown:
 
 	def __init__(self, duration: float, checkInterval: float, maxMessagesBeforeCheck: int) -> None:
 		"""Initialization."""
-		if not isinstance(duration, (int, float)) or duration <= 0.: raise ValueError(f"Invalid cooldown duration provided: {duration}")
+		if not isinstance(duration, (int, float)) or duration < 0.: raise ValueError(f"Invalid cooldown duration provided: {duration}")
 		self._duration = duration
-		if not isinstance(checkInterval, (int, float)) or checkInterval <= 0.: raise ValueError(f"Invalid cooldown check period provided: {checkInterval}")
+		if not isinstance(checkInterval, (int, float)) or checkInterval < 0.: raise ValueError(f"Invalid cooldown check period provided: {checkInterval}")
 		self._checkInterval = checkInterval
-		if not isinstance(maxMessagesBeforeCheck, int) or maxMessagesBeforeCheck <= 0: raise ValueError(f"Invalid maximum allowed messages before check provided: {maxMessagesBeforeCheck}")
+		if not isinstance(maxMessagesBeforeCheck, int) or maxMessagesBeforeCheck < 0: raise ValueError(f"Invalid maximum allowed messages before check provided: {maxMessagesBeforeCheck}")
 		self._maxMessagesBeforeCheck = maxMessagesBeforeCheck
 		self._messageTimes = []
 		self._cooldownBeginningTimestamp = None
@@ -24,6 +24,7 @@ class Cooldown:
 
 	def getRemainingTime(self) -> float:
 		"""Returns the number of remaining seconds until the user can resume."""
+		if not self._duration or not self._checkInterval or not self._maxMessagesBeforeCheck: return 0.
 		# Mutex to prevent race conditions
 		self._mutex.acquire_lock()
 		currentTimestamp = monotonic()

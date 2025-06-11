@@ -7,6 +7,7 @@ from src.components.cache import Cache
 from src.components.cooldown import Cooldown
 from src.components.group import Group
 from src.components.output import Output
+from src.components.requests import Requests
 from src.components.vectorstore import Vectorstore
 from src.translations import MessagesTexts, getLanguagePlural
 # from typing import Any, Coroutine, Iterable
@@ -78,7 +79,7 @@ async def message_ask(
 		cache[query] = (response, cache.embed(query))
 
 
-async def message_clear(message: Message, *, obj: Cache | Group | Vectorstore) -> None:
+async def message_clear(message: Message, *, obj: Cache | Group | Requests | Vectorstore) -> None:
 	"""(Trusted command) Clears the specified object."""
 	obj.clear()
 	await message.add_reaction("✅")
@@ -86,9 +87,9 @@ async def message_clear(message: Message, *, obj: Cache | Group | Vectorstore) -
 
 async def message_help(message: Message) -> None:
 	"""Prints the help message."""
-	await Output.replyWithinCharacterLimit(message, MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- {description}" for description in DISCORD_COMMAND_DOCUMENTATION.values())))
+	await Output.replyWithinCharacterLimit(message, MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- {description}" for description in DISCORD_COMMAND_DOCUMENTATION.values())).replace("[emote]", DISCORD_REQUEST_ADDITION_EMOJI))
 
-
+# TODO: Extend to allow checking if a recipient ID has any requests pending.
 async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
 	"""Reacts whether the specified entry is stored in the specified object."""
 	reformattedEntry = entry
@@ -99,7 +100,7 @@ async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
 		await message.add_reaction(emote)
 
 
-async def message_load(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore, trustedGroup: Group | None = None) -> None:
+async def message_load(message: Message, filepath: str | None = None, *, obj: Cache | Group | Requests | Vectorstore, trustedGroup: Group | None = None) -> None:
 	"""(Trusted command) Loads the object from the provided filepath, or the last-used filepath if none is provided."""
 	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
 		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
@@ -136,12 +137,8 @@ async def message_remove(message: Message, *entries: str, obj: Group | Vectorsto
 	await message.add_reaction("✅")
 
 
-async def message_save(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore | None = None, trustedGroup: Group | None = None) -> None:
+async def message_save(message: Message, filepath: str | None = None, *, obj: Cache | Group | Requests | Vectorstore, trustedGroup: Group | None = None) -> None:
 	"""(Trusted command) Saves the object to the provided filepath, or the last-used filepath if none is provided."""
-	if obj is None:
-		await Output.replyWithinCharacterLimit(message, MessagesTexts.SAVE__NOT_FOUND[LANGUAGE])
-		await message.add_reaction("❌")
-		return
 	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
 		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
 		trustedGroup.remove(message.author.id)

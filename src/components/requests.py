@@ -1,33 +1,29 @@
 from discord import Message
+from pickle import dump, load
 from typing import ItemsView, Iterable, TypedDict
 
+from src.components.saveableClass import SaveableClass
 from src.translations import RequestsTexts
 from Settings import LANGUAGE
-# from typing import Literal, TypeAlias
 
 # TODO: Have requests expire and auto-delete themselves after a configurable amount of time
-# TODO: Implement saving/loading request lists
+# TODO: Is there a way to save/load the request dictionaries (and by extension the Message objects) without resorting to possibly-vulnerable Pickle serialization/deserialization?
 class RequestData(TypedDict):
 	recipientID: int
 	requesterIDs: list[int]
 	desiredMessages: list[Message]
-
-# RequestDataAttributeNames: TypeAlias = Literal["recipientID", "requesterIDs", "desiredMessages"]
 	
-class Requests:
+class Requests(SaveableClass):
 	# Keys are request messages' IDs
 	_requests: dict[Message, RequestData]
 	message: str
-	# keywords: dict[str, str]
-	def __init__(self, message: str, keywords: dict[str, str] | None = None) -> None:
+	def __init__(self, message: str, filepath: str | None = None) -> None:
+		super().__init__(filepath)
 		if not message: raise ValueError(f"Invalid message provided: {message}")
 		self.message = message
-		# self.keywords = {keyword: attribute for keyword, attribute in (
-		# 	keywords if keywords is not None else ((f"[{attr}]", attr) for attr in RequestData.__annotations__.keys())
-		# ) if keyword in message and attribute in RequestData.__annotations__.keys()}
-		# if keywords is not None and len(self.keywords) < len(keywords): raise ValueError(RequestsTexts.MISSING_KEYWORDS[LANGUAGE].replace("[missing]", f"{set(keywords) - set(self.keywords)}"))
-		
-		self._requests = {}
+
+		if not self.load(filepath):
+			self._requests = {}
 
 	def __contains__(self, key: Message) -> bool:
 		return key in self._requests
@@ -66,10 +62,21 @@ class Requests:
 		if requestMessage not in self._requests: return False
 		del self._requests[requestMessage]
 		return True
+	
+	def clear(self) -> None:
+		self._requests.clear()
 		
 	def populateMessage(self, data: RequestData) -> str:
-		message = self.message
-		# for keyword, attribute in self.keywords:
-		# 	message = message.replace(keyword, str(data[attribute]))
-		message = message.replace("[recipientID]", f"<@{data['recipientID']}>").replace("[requesterIDs]", ", ".join(f"<@{requesterID}>" for requesterID in data["requesterIDs"])).replace("[desiredMessageLinks]", "\n".join(f"- {desiredMessage.jump_url}" for desiredMessage in data["desiredMessages"]))
-		return message
+		return self.message.replace("[recipientID]", f"<@{data['recipientID']}>").replace("[requesterIDs]", ", ".join(f"<@{requesterID}>" for requesterID in data["requesterIDs"])).replace("[desiredMessageLinks]", "\n".join(f"- {desiredMessage.jump_url}" for desiredMessage in data["desiredMessages"]))
+	
+	def save(self, filepath: str | None = None) -> bool:
+		"""Saves the requests list to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
+		if (filepath := super().getFilepath(filepath)) is None: return False
+		with open(filepath, "wb") as f: dump(self._requests, f)
+		return True
+	
+	def load(self, filepath: str | None = None) -> bool:
+		"""Loads the requests list from the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""
+		if (filepath := super().getFilepath(filepath)) is None: return False
+		with open(filepath, "rb") as f: self._requests = load(f)
+		return True

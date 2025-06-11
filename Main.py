@@ -34,7 +34,7 @@ permittingGroup = Group(DISCORD_PERMITTING_IDS_FILEPATH)
 async def on_message(message: Message) -> None:
 	"""Decode desired action upon being pinged."""
 	# Thank you to Opal for contributing code to this.
-	global vectorstore
+
 	# If bot was not mentioned or mentioned itself, ignore
 	if bot.user not in message.mentions or message.author == bot.user or bot.user is None:
 		return
@@ -53,6 +53,7 @@ async def on_message(message: Message) -> None:
 		await message_help(message)
 		return
 	# Otherwise decipher command:
+	# TODO: Convert most of these into slash commands
 	argumentsCount = len(commandSubcommandString)
 	match command := commandSubcommandString[0].casefold():
 		case "addtext":
@@ -63,6 +64,24 @@ async def on_message(message: Message) -> None:
 			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=blockedGroup)
+		case "clear":
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
+			elif cache is None: return
+			else:
+				match commandSubcommandString[1].casefold():
+					case "blocked":
+						await message_clear(message, obj=blockedGroup)
+					case "cache":
+						await message_clear(message, obj=cache)
+					case "permitting":
+						await message_clear(message, obj=permittingGroup)
+					case "trusted":
+						await message_clear(message, obj=trustedGroup)
+					# case "vectorstore":
+					# 	await message_clear(message, obj=vectorstore)
+					case _:
+						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "distrust":
 			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
@@ -73,12 +92,14 @@ async def on_message(message: Message) -> None:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
 						await message_isin(message, commandSubcommandString[2], obj=blockedGroup)
-					case "trusted":
-						await message_isin(message, commandSubcommandString[2], obj=trustedGroup)
 					case "permitting":
 						await message_isin(message, commandSubcommandString[2], obj=permittingGroup)
+					case "trusted":
+						await message_isin(message, commandSubcommandString[2], obj=trustedGroup)
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+		case "help":
+			await message_help(message)
 		case "load":
 			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
@@ -86,10 +107,10 @@ async def on_message(message: Message) -> None:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
 						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=blockedGroup)
-					case "trusted":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
 					case "permitting":
 						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permittingGroup)
+					case "trusted":
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
 					case "vectorstore":
 						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
@@ -111,10 +132,10 @@ async def on_message(message: Message) -> None:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
 						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=blockedGroup)
-					case "trusted":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
 					case "permitting":
 						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permittingGroup)
+					case "trusted":
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
 					case "vectorstore":
 						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstore)
 					case _:
@@ -133,6 +154,7 @@ async def on_message(message: Message) -> None:
 
 @bot.event
 async def on_reaction_add(reaction: Reaction, member: Member) -> None:
+	"""Decodes desired action upon a new reaction being added."""
 	# If the reaction is not on a request message...
 	if all((reaction.message not in vectorstoreRequests, reaction.message not in permissionRequests)):
 		# ...and it's not the designated emoji, or by a non-trusted user, ignore

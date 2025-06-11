@@ -51,10 +51,13 @@ class Vectorstore:
 	def remove(self, text: str | Iterable[str]) -> int:
 		"""Removes texts from the vectorstore. Returns the number of documents removed.
 		Not yet implemented."""
+		raise NotImplementedError
 		# allTexts = [text] if isinstance(text, str) else list(text)
 		# ...
 		# return len(allTexts)
-		return 0
+	
+	def clear(self) -> None:
+		raise NotImplementedError
 	
 	def save(self, filepath: str | None = None) -> bool:
 		"""Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""

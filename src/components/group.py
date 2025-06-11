@@ -31,6 +31,9 @@ class Group:
 			count += 1
 		return count
 	
+	def clear(self) -> None:
+		self._members.clear()
+	
 	def __contains__(self, memberID: int) -> bool:
 		return memberID in self._members
 	

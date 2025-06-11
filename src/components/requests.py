@@ -5,12 +5,14 @@ from src.translations import RequestsTexts
 from Settings import LANGUAGE
 # from typing import Literal, TypeAlias
 
+# TODO: Have requests expire and auto-delete themselves after a configurable amount of time
+# TODO: Implement saving/loading request lists
 class RequestData(TypedDict):
 	recipientID: int
 	requesterIDs: list[int]
-	desiredMessageLinks: list[str]
+	desiredMessages: list[Message]
 
-# RequestDataAttributeNames: TypeAlias = Literal["recipientID", "requesterIDs", "desiredMessageLinks"]
+# RequestDataAttributeNames: TypeAlias = Literal["recipientID", "requesterIDs", "desiredMessages"]
 	
 class Requests:
 	# Keys are request messages' IDs
@@ -36,18 +38,18 @@ class Requests:
 	def __getitem__(self, requestMessage: Message) -> RequestData | None:
 		return self._requests.get(requestMessage)
 
-	def add(self, requestMessage: Message, recipientID: int | None = None, requesterIDs: int | Iterable[int] | None = None, desiredMessageLinks: str | Iterable[str] | None = None) -> bool:
+	def add(self, requestMessage: Message, recipientID: int | None = None, requesterIDs: int | Iterable[int] | None = None, desiredMessages: Message | Iterable[Message] | None = None) -> bool:
 		"""Adds a new request record if one does not already exist with the provided request message ID. Otherwise, appends the provided information to the existing record."""
 		# Standardize requesterIDs and desiredMessageLinks as lists
 		requesterIDsList = [] if requesterIDs is None else [requesterIDs] if isinstance(requesterIDs, int) else list(set(requesterIDs))
-		desiredMessageLinksList = [] if desiredMessageLinks is None else [desiredMessageLinks] if isinstance(desiredMessageLinks, str) else list(set(desiredMessageLinks))
+		desiredMessagesList: list[Message] = [] if desiredMessages is None else list(set(desiredMessages)) if isinstance(desiredMessages, Iterable) else [desiredMessages]
 		# If entry already exists, add new elements to existing ones
 		if requestMessage in self._requests:
 			# ...except for recipient ID, which is immutable
 			if recipientID is not None and recipientID != self._requests[requestMessage]["recipientID"]:
 				raise ValueError(RequestsTexts.RECIPIENT_ID_UNCHANGEABLE[LANGUAGE])
 			self._requests[requestMessage]["requesterIDs"] += [r for r in requesterIDsList if r not in self._requests[requestMessage]["requesterIDs"]]
-			self._requests[requestMessage]["desiredMessageLinks"] += [l for l in desiredMessageLinksList if l not in self._requests[requestMessage]["desiredMessageLinks"]]
+			self._requests[requestMessage]["desiredMessages"] += [l for l in desiredMessagesList if l not in self._requests[requestMessage]["desiredMessages"]]
 		# Otherwise create a new entry
 		else:
 			# Recipient ID cannot be None
@@ -56,11 +58,11 @@ class Requests:
 			self._requests[requestMessage] = {
 				"recipientID": recipientID,
 				"requesterIDs": requesterIDsList,
-				"desiredMessageLinks": desiredMessageLinksList
+				"desiredMessages": desiredMessagesList
 			}
 		return True
 
-	def delete(self, requestMessage: Message) -> bool:
+	def remove(self, requestMessage: Message) -> bool:
 		if requestMessage not in self._requests: return False
 		del self._requests[requestMessage]
 		return True
@@ -69,5 +71,5 @@ class Requests:
 		message = self.message
 		# for keyword, attribute in self.keywords:
 		# 	message = message.replace(keyword, str(data[attribute]))
-		message = message.replace("[recipientID]", f"<@{data['recipientID']}>").replace("[requesterIDs]", ", ".join(f"<@{requesterID}>" for requesterID in data["requesterIDs"])).replace("[desiredMessageLinks]", "\n".join(f"- {messageLink}" for messageLink in data["desiredMessageLinks"]))
+		message = message.replace("[recipientID]", f"<@{data['recipientID']}>").replace("[requesterIDs]", ", ".join(f"<@{requesterID}>" for requesterID in data["requesterIDs"])).replace("[desiredMessageLinks]", "\n".join(f"- {desiredMessage.jump_url}" for desiredMessage in data["desiredMessages"]))
 		return message

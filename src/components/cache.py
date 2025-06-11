@@ -55,3 +55,6 @@ class Cache:
 			highestSimilarity = similarity
 			bestMatch = cachedAnswer
 		return bestMatch if highestSimilarity >= self._semanticSimilarityThreshold else None
+	
+	def clear(self) -> None:
+		self._cache.clear()

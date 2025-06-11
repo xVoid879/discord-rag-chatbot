@@ -19,7 +19,7 @@ from src.translations import MessagesTexts, getLanguagePlural
 
 
 async def message_add(message: Message, *entries: str, obj: Group | Vectorstore) -> None:
-	"""(Privileged command) Adds the specified entry to the specified object."""
+	"""(Trusted command) Adds the specified entry to the specified object."""
 	# Temporary
 	reformattedEntries = list(entries)
 	if isinstance(obj, Vectorstore):
@@ -61,7 +61,7 @@ async def message_ask(
 		if response := cache.getSemanticMatch(query):
 			await Output.replyWithinCharacterLimit(message, response + "\n-# " + MessagesTexts.ASK__CACHED_RESPONSE[LANGUAGE] + (" " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
 			return
-	# Retrieve context from vectorstore
+	# Retrieve context and scores from vectorstore
 	context = "\n\n-------------".join(f"__(Estimated relevance: **{score:.2%}**)__\n{text}".strip() for text, score in vectorstore.query(query)) if vectorstore is not None else MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]
 	if context and context != MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]:
 		context = "\n-------------" + context
@@ -78,12 +78,19 @@ async def message_ask(
 		cache[query] = (response, cache.embed(query))
 
 
+async def message_clear(message: Message, *, obj: Cache | Group | Vectorstore) -> None:
+	"""(Trusted command) Clears the specified object."""
+	obj.clear()
+	await message.add_reaction("✅")
+
+
 async def message_help(message: Message) -> None:
+	"""Prints the help message."""
 	await Output.replyWithinCharacterLimit(message, MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- {description}" for description in DISCORD_COMMAND_DOCUMENTATION.values())))
 
 
 async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
-	"""Peacts whether the specified entry is stored in the specified object."""
+	"""Reacts whether the specified entry is stored in the specified object."""
 	reformattedEntry = entry
 	if isinstance(obj, Group):
 		reformattedEntry = int(entry.strip("<@!> "))
@@ -93,7 +100,7 @@ async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
 
 
 async def message_load(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore, trustedGroup: Group | None = None) -> None:
-	"""(Privileged command) Loads the object from the provided filepath, or the last-used filepath if none is provided."""
+	"""(Trusted command) Loads the object from the provided filepath, or the last-used filepath if none is provided."""
 	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
 		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
 		trustedGroup.remove(message.author.id)
@@ -107,12 +114,12 @@ async def message_load(message: Message, filepath: str | None = None, *, obj: Gr
 
 
 async def message_ping(message: Message, *, bot: Bot) -> None:
-	"""(Privileged command) Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided."""
+	"""Returns the bot's latency."""
 	await Output.replyWithinCharacterLimit(message, MessagesTexts.PING[LANGUAGE].replace("[latency]", f"{bot.latency:.2g}"))
 
 
 async def message_remove(message: Message, *entries: str, obj: Group | Vectorstore) -> None:
-	"""(Privileged command) Blocks the specified user from using the bot."""
+	"""(Trusted command) Removes the specified entries from the specified object."""
 	reformattedEntries = list(entries)
 	if isinstance(obj, Vectorstore):
 		if len([word for text in entries for word in text.split()]) == len(entries):
@@ -130,7 +137,7 @@ async def message_remove(message: Message, *entries: str, obj: Group | Vectorsto
 
 
 async def message_save(message: Message, filepath: str | None = None, *, obj: Group | Vectorstore | None = None, trustedGroup: Group | None = None) -> None:
-	"""(Privileged command) Saves the object to the provided filepath, or the last-used filepath if none is provided."""
+	"""(Trusted command) Saves the object to the provided filepath, or the last-used filepath if none is provided."""
 	if obj is None:
 		await Output.replyWithinCharacterLimit(message, MessagesTexts.SAVE__NOT_FOUND[LANGUAGE])
 		await message.add_reaction("❌")
@@ -148,5 +155,5 @@ async def message_save(message: Message, filepath: str | None = None, *, obj: Gr
 
 
 async def message_notTrusted(message: Message, command: str) -> None:
-	"""(Privileged command) Returns an error message."""
+	"""Returns that the user cannot run the provided command."""
 	await Output.replyWithinCharacterLimit(message, MessagesTexts.NOT_TRUSTED[LANGUAGE].replace("[command]", f"{command}"))

@@ -2,6 +2,7 @@ from threading import Lock
 from time import monotonic
 
 class Cooldown:
+	# TODO: Split up cooldown per server/per user
 	_duration: float
 	_checkInterval: float
 	_maxMessagesBeforeCheck: int

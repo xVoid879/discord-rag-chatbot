@@ -95,15 +95,17 @@ async def on_message(message: Message) -> None:
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "hasrole":
-			match commandSubcommandString[1].casefold():
-				case "blocked":
-					await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=blockedGroup)
-				case "permitting":
-					await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=permittingGroup)
-				case "trusted":
-					await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=trustedGroup)
-				case _:
-					await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			else:
+				match commandSubcommandString[1].casefold():
+					case "blocked":
+						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=blockedGroup)
+					case "permitting":
+						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=permittingGroup)
+					case "trusted":
+						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=trustedGroup)
+					case _:
+						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "help":
 			await message_help(message)
 		case "load":

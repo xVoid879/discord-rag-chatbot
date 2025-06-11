@@ -34,14 +34,14 @@ This bot is primarily interacted with via pinging it.
 - `[query]`: Looks up and generates an answer for the provided query.
 - `help`: Prints the bot's purpose and list of commands.
 - `ping`: Returns the bot's latency.
-- `hasrole [blocked|permitting|trusted] [user ID]`: Returns whether a user is blocked/permitting/trusted, respectively.
+- `hasrole [blocked|permitting|trusted] [user ID (optional)]`: Returns whether a user (defaulting to yourself) is blocked/permitting/trusted, respectively.
 - `permit`: Adds oneself to the permitting group, allowing trusted users to add any of their messages to the vectorstore without having to individually request permission.
 - `revoke`: Removes oneself from the permitting group, revoking the permission to trusted users granted by `permit`. 
 ### Trusted commands
 - `addtext "[text]"`: Directly adds the provided text to the vectorstore.<!-- To avoid mistakes with forgetting quotation marks, the text must be 2+ words. Quotation marks embedded in texts must be "escaped" by adding a backslash directly in front of them.-->
-- `clear [blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore_requests]`: Clears the provided group/cache/requests list, respectively.
-- `save [blocked|permitting|trusted|vectorstore] [filepath (optional)]`: Saves the provided group/cache/requests list/vectorstore to the provided filepath, or their last-used filepath if none is provided.
-- `load [blocked|permitting|trusted|vectorstore] [filepath (optional)]`: Loads the provided group/cache/requests list/vectorstore from the provided filepath, or their last-used filepath if none is provided.
+- `clear [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore_requests]`: Clears the provided group/cache/requests list, respectively.
+- `save [all|blocked|permitting|trusted|vectorstore] [filepath (optional)]`: Saves the provided group/cache/requests list/vectorstore to the provided filepath, or their last-used filepath if none is provided.
+- `load [all|blocked|permitting|trusted|vectorstore] [filepath (optional)]`: Loads the provided group/cache/requests list/vectorstore from the provided filepath, or their last-used filepath if none is provided.
 - `block [user ID #1] ... [user ID #n]`/`unblock [user ID #1] ... [user ID #n]`: Adds or removes user(s) to the blocked group, respectively.
 - `trust [user ID #1] ... [user ID #n]`/`distrust [user ID #1] ... [user ID #n]`: Adds or removes user(s) to the trusted group, respectively.
 

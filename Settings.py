@@ -22,7 +22,7 @@ Provide a concise and accurate answer to the question provided below, using ONLY
 """Cache settings"""
 # The filepath to the existing cache to be loaded, if any.
 # If None, a new cache is created that can later be saved via `save cache`, unless caching is disabled (see below).
-CACHE_FILEPATH: str | None = None
+CACHE_FILEPATH: str | None = os.path.join(".", "data", "cache.pkl")
 # The maximum size of the cache. Disables caching if set to 0.
 CACHE_MAX_SIZE: float = 100
 # The number of seconds until cache entries expire, or never if set to None. Disables caching if set to 0.
@@ -49,13 +49,13 @@ DISCORD_COMMAND_DOCUMENTATION: dict[str, str] = {
 	"": "`[query]`: Looks up and generates an answer for the provided query.",
 	"help": "`help`: Prints my purpose and list of commands.",
 	"ping": "`ping`: Returns my latency.",
-	"hasrole": "`hasrole [blocked|permitting|trusted] [user ID]`: Returns whether a user is blocked/trusted, respectively.",
+	"hasrole": "`hasrole [blocked|permitting|trusted] [user ID (optional)]`: Returns whether a user (defaulting to yourself) is blocked/permitting/trusted, respectively.",
 	"permit": "`permit`: Permits trusted users to add your messages to my corpus without individually requesting permission.",
 	"revoke": "`revoke`: Revokes your permission for trusted users to add your messages without individually requesting permission.",
 	"addtext": '`addtext "[text]"` *(Trusted only)*: Adds the provided text to my corpus.',
-	"clear": "`clear [blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore_requests]` *(Trusted only)*: Clears the provided group/cache/requests list.",
-	"save": "`save [blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore|vectorstore_requests] [filepath (optional)]` *(Trusted only)*: Saves the provided group/cache/requests list/corpus to the provided filepath, or their last-used filepath if none is provided.",
-	"load": "`load [blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore|vectorstore_requests] [filepath (optional)]` *(Trusted only)*: Loads the provided group/cache/requests list/corpus from the provided filepath, or their last-used filepath if none is provided.",
+	"clear": "`clear [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore_requests]` *(Trusted only)*: Clears the provided group/cache/requests list.",
+	"save": "`save [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore|vectorstore_requests] [filepath (optional)]` *(Trusted only)*: Saves the provided group/cache/requests list/corpus to the provided filepath, or their last-used filepath if none is provided.",
+	"load": "`load [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore|vectorstore_requests] [filepath (optional)]` *(Trusted only)*: Loads the provided group/cache/requests list/corpus from the provided filepath, or their last-used filepath if none is provided.",
 	"block": "`block [user ID #1] ... [user ID #n]` *(Trusted only)*: Adds user(s) to the blocked group.",
 	"unblock": "`unblock [user ID #1] ... [user ID #n]` *(Trusted only)*: Removes user(s) from the blocked group.",
 	"trust": "`trust [user ID #1] ... [user ID #n]` *(Trusted only)*: Adds user(s) to the trusted group.",

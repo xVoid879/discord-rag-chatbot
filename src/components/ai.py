@@ -1,8 +1,8 @@
 from langchain_groq import ChatGroq
 from pydantic import SecretStr
 
-from src.translations import AITexts
 from Settings import LANGUAGE
+from src.translations import AITexts
 
 class AI:
 	_ai: ChatGroq

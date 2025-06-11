@@ -1,5 +1,6 @@
 from discord import Message
 from discord.ext.commands import Bot # type: ignore
+from typing import Iterable
 
 from Settings import *
 from src.components.ai import AI
@@ -79,9 +80,9 @@ async def message_ask(
 		cache[query] = (response, cache.embed(query))
 
 
-async def message_clear(message: Message, *, obj: Cache | Group | Requests | Vectorstore) -> None:
+async def message_clear(message: Message, *, objects: Iterable[Cache | Group | Requests | Vectorstore]) -> None:
 	"""(Trusted command) Clears the specified object."""
-	obj.clear()
+	for obj in objects: obj.clear()
 	await message.add_reaction("✅")
 
 
@@ -100,17 +101,19 @@ async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
 		await message.add_reaction(emote)
 
 
-async def message_load(message: Message, filepath: str | None = None, *, obj: Cache | Group | Requests | Vectorstore, trustedGroup: Group | None = None) -> None:
+# TODO: Allow `filepath` to be an iterable as well?
+async def message_load(message: Message, filepath: str | None = None, *, objects: Iterable[Cache | Group | Requests | Vectorstore], trustedGroup: Group | None = None) -> None:
 	"""(Trusted command) Loads the object from the provided filepath, or the last-used filepath if none is provided."""
-	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
-		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
-		trustedGroup.remove(message.author.id)
-		await message.add_reaction("❌")
-		return
-	if not obj.load(filepath):
-		await Output.replyWithinCharacterLimit(message, MessagesTexts.LOAD__ERROR[LANGUAGE])
-		await message.add_reaction("❌")
-		return
+	for obj in objects:
+		if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
+			await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
+			trustedGroup.remove(message.author.id)
+			await message.add_reaction("❌")
+			return
+		if not obj.load(filepath):
+			await Output.replyWithinCharacterLimit(message, MessagesTexts.LOAD__ERROR[LANGUAGE])
+			await message.add_reaction("❌")
+			return
 	await message.add_reaction("✅")
 
 
@@ -137,17 +140,19 @@ async def message_remove(message: Message, *entries: str, obj: Group | Vectorsto
 	await message.add_reaction("✅")
 
 
-async def message_save(message: Message, filepath: str | None = None, *, obj: Cache | Group | Requests | Vectorstore, trustedGroup: Group | None = None) -> None:
+# TODO: Allow `filepath` to be an iterable as well?
+async def message_save(message: Message, filepath: str | None = None, *, objects: Iterable[Cache | Group | Requests | Vectorstore], trustedGroup: Group | None = None) -> None:
 	"""(Trusted command) Saves the object to the provided filepath, or the last-used filepath if none is provided."""
-	if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
-		await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
-		trustedGroup.remove(message.author.id)
-		await message.add_reaction("❌")
-		return
-	if not obj.save(filepath):
-		await Output.replyWithinCharacterLimit(message, MessagesTexts.SAVE__ERROR[LANGUAGE])
-		await message.add_reaction("❌")
-		return
+	for obj in objects:
+		if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
+			await Output.replyWithinCharacterLimit(message, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
+			trustedGroup.remove(message.author.id)
+			await message.add_reaction("❌")
+			return
+		if not obj.save(filepath):
+			await Output.replyWithinCharacterLimit(message, MessagesTexts.SAVE__ERROR[LANGUAGE])
+			await message.add_reaction("❌")
+			return
 	await message.add_reaction("✅")
 
 

@@ -54,6 +54,8 @@ async def on_message(message: Message) -> None:
 		return
 	# Otherwise decipher command:
 	# TODO: Convert most of these into slash commands
+	# TODO: Consolidate block/trust and unblock/distrust under addrole/removerole
+	# TODO: Rename permitting/revoking to waiving/reinstating?
 	argumentsCount = len(commandSubcommandString)
 	match command := commandSubcommandString[0].casefold():
 		case "addtext":
@@ -69,20 +71,23 @@ async def on_message(message: Message) -> None:
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
+					case "all":
+						# await message_clear(message, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests))
+						await message_clear(message, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstoreRequests))
 					case "blocked_group":
-						await message_clear(message, obj=blockedGroup)
+						await message_clear(message, objects=(blockedGroup,))
 					case "cache":
-						await message_clear(message, obj=cache)
+						await message_clear(message, objects=(cache,))
 					case "permitting_group":
-						await message_clear(message, obj=permittingGroup)
+						await message_clear(message, objects=(permittingGroup,))
 					case "permitting_requests":
-						await message_clear(message, obj=permissionRequests)
+						await message_clear(message, objects=(permissionRequests,))
 					case "trusted_group":
-						await message_clear(message, obj=trustedGroup)
+						await message_clear(message, objects=(trustedGroup,))
 					# case "vectorstore":
-					# 	await message_clear(message, obj=vectorstore)
+					# 	await message_clear(message, objects=(vectorstore,))
 					case "vectorstore_requests":
-						await message_clear(message, obj=vectorstoreRequests)
+						await message_clear(message, objects=(vectorstoreRequests,))
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "distrust":
@@ -90,17 +95,15 @@ async def on_message(message: Message) -> None:
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "hasrole":
-			if argumentsCount < 3: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
-			else:
-				match commandSubcommandString[1].casefold():
-					case "blocked":
-						await message_isin(message, commandSubcommandString[2], obj=blockedGroup)
-					case "permitting":
-						await message_isin(message, commandSubcommandString[2], obj=permittingGroup)
-					case "trusted":
-						await message_isin(message, commandSubcommandString[2], obj=trustedGroup)
-					case _:
-						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			match commandSubcommandString[1].casefold():
+				case "blocked":
+					await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=blockedGroup)
+				case "permitting":
+					await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=permittingGroup)
+				case "trusted":
+					await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=trustedGroup)
+				case _:
+					await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "help":
 			await message_help(message)
 		case "load":
@@ -108,20 +111,22 @@ async def on_message(message: Message) -> None:
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
+					case "all":
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests), trustedGroup=trustedGroup)
 					case "blocked_group":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=blockedGroup)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup,), trustedGroup=trustedGroup)
 					case "cache":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=cache)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(cache,), trustedGroup=trustedGroup)
 					case "permitting_group":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permittingGroup)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permittingGroup,), trustedGroup=trustedGroup)
 					case "permitting_requests":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permissionRequests)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permissionRequests,), trustedGroup=trustedGroup)
 					case "trusted_group":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(trustedGroup,), trustedGroup=trustedGroup)
 					case "vectorstore":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstore)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstore,), trustedGroup=trustedGroup)
 					case "vectorstore_requests":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstoreRequests)
+						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstoreRequests,), trustedGroup=trustedGroup)
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "permit":
@@ -139,20 +144,22 @@ async def on_message(message: Message) -> None:
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
+					case "all":
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests), trustedGroup=trustedGroup)
 					case "blocked_group":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=blockedGroup)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup,), trustedGroup=trustedGroup)
 					case "cache":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=cache)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(cache,), trustedGroup=trustedGroup)
 					case "permitting_group":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permittingGroup)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permittingGroup,), trustedGroup=trustedGroup)
 					case "permitting_requests":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=permissionRequests)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permissionRequests,), trustedGroup=trustedGroup)
 					case "trusted_group":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=trustedGroup)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(trustedGroup,), trustedGroup=trustedGroup)
 					case "vectorstore":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstore)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstore,), trustedGroup=trustedGroup)
 					case "vectorstore_requests":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, obj=vectorstoreRequests)
+						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstoreRequests,), trustedGroup=trustedGroup)
 					case _:
 						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
 		case "trust":

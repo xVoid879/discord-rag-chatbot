@@ -2,9 +2,9 @@ from discord import Message
 from pickle import dump, load
 from typing import ItemsView, Iterable, TypedDict
 
+from Settings import LANGUAGE
 from src.components.saveableClass import SaveableClass
 from src.translations import RequestsTexts
-from Settings import LANGUAGE
 
 # TODO: Have requests expire and auto-delete themselves after a configurable amount of time
 # TODO: Is there a way to save/load the request dictionaries (and by extension the Message objects) without resorting to possibly-vulnerable Pickle serialization/deserialization?

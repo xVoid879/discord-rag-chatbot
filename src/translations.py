@@ -104,7 +104,7 @@ class MessagesTexts:
 		"English": """Hi! I'm a chatbot designed to answer basic questions about whatever corpus I was given.
 **I am still under development and do not have full functionality yet.**
 
-I'm primarily interacted with via pinging me. The commands I support are
+I'm primarily interacted with via pinging me or slash commands. The commands I support are
 [descriptions]
 
 For messages sent after I'm added, trusted users can also request to add existing messages to the vectorstore by reacting with [emote], assuming the original author then gives his/her permission."""

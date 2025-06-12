@@ -1,4 +1,4 @@
-from discord import Message
+from discord import Interaction, Message
 from discord.ext.commands import Bot # type: ignore
 from typing import Iterable
 
@@ -86,9 +86,9 @@ async def message_clear(message: Message, *, objects: Iterable[Cache | Group | R
 	await message.add_reaction("✅")
 
 
-async def message_help(message: Message) -> None:
+async def message_help(message: Interaction | Message, command: str | None = None) -> None:
 	"""Prints the help message."""
-	await Output.replyWithinCharacterLimit(message, MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- {description}" for description in DISCORD_COMMAND_DOCUMENTATION.values())).replace("[emote]", DISCORD_REQUEST_ADDITION_EMOJI))
+	await Output.replyWithinCharacterLimit(message, f"`{DISCORD_COMMAND_DOCUMENTATION[command][0]}`: {DISCORD_COMMAND_DOCUMENTATION[command][1]}" if command is not None and command in DISCORD_COMMAND_DOCUMENTATION else MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- `{syntax}`: {description}" for syntax, description in DISCORD_COMMAND_DOCUMENTATION.values())).replace("[emote]", DISCORD_REQUEST_ADDITION_EMOJI))
 
 # TODO: Extend to allow checking if a recipient ID has any requests pending.
 async def message_isin(message: Message, entry: str, *, obj: Group) -> None:
@@ -117,9 +117,9 @@ async def message_load(message: Message, filepath: str | None = None, *, objects
 	await message.add_reaction("✅")
 
 
-async def message_ping(message: Message, *, bot: Bot) -> None:
+async def message_ping(interaction: Interaction | Message, *, bot: Bot) -> None:
 	"""Returns the bot's latency."""
-	await Output.replyWithinCharacterLimit(message, MessagesTexts.PING[LANGUAGE].replace("[latency]", f"{bot.latency:.2g}"))
+	await Output.replyWithinCharacterLimit(interaction, MessagesTexts.PING[LANGUAGE].replace("[latency]", f"{bot.latency:.2g}"))
 
 
 async def message_remove(message: Message, *entries: str, obj: Group | Vectorstore) -> None:

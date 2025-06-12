@@ -43,7 +43,7 @@ class Vectorstore(SaveableClass):
 		# embedding = list(EMBEDDING_MODEL.embed(text))[0]
 		# self._vectorstore.add(embedding)
 		# ...?
-		allTexts = [segment for t in ([text] if isinstance(text, str) else list(text)) for segment in (Output.splitIntoSentences(t, self._segmentSize, True) if self._segmentSize is not None else [t]) ]
+		allTexts = [segment for t in ([text] if isinstance(text, str) else list(text)) for segment in (Output.splitIntoSentences(t, self._segmentSize, overlapSentences=True) if self._segmentSize is not None else [t]) ]
 		self._vectorstore.add_texts(allTexts)
 		return len(allTexts)
 	

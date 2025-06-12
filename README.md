@@ -26,14 +26,14 @@ pip install -r "[your/path/to/]requirements.txt" -U
 6. Open [Settings.py](Settings.py) in your editor of choice, and adjust the bot's settings as desired.
 7. Launch the bot. If no Groq API key is provided, the bot will solely print the most relevant messages from the vectorstore.
 ```bash
-py "[your/path/to/]Launch.py" "[Discord bot token]" "[Groq API key (optional)]"
+py "[your/path/to/]Main.py" "[Discord bot token]" "[Groq API key (optional)]"
 ```
 
 ## Commands
-This bot is primarily interacted with via pinging it.
+This bot is primarily interacted with via pinging it or slash commands.
 - `[query]`: Looks up and generates an answer for the provided query.
-- `help`: Prints the bot's purpose and list of commands.
-- `ping`: Returns the bot's latency.
+- `/help`: Prints the bot's purpose and list of commands.
+- `/ping`: Returns the bot's latency.
 - `hasrole [blocked|permitting|trusted] [user ID (optional)]`: Returns whether a user (defaulting to yourself) is blocked/permitting/trusted, respectively.
 - `permit`: Adds oneself to the permitting group, allowing trusted users to add any of their messages to the vectorstore without having to individually request permission.
 - `revoke`: Removes oneself from the permitting group, revoking the permission to trusted users granted by `permit`. 

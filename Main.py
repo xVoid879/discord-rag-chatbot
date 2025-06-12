@@ -1,4 +1,5 @@
-from discord import Intents, Member, Message, Reaction
+from discord import Intents, Interaction, Member, Message, Reaction
+from discord.app_commands import describe
 from discord.ext.commands import Bot # type: ignore
 from pydantic import SecretStr
 from sys import argv
@@ -17,7 +18,15 @@ AI_API_KEY = SecretStr(argv[2]) if len(argv) >= 3 else None
 
 intents = Intents.default()
 intents.message_content = True
-bot = Bot(command_prefix="", intents=intents)
+
+class _Bot(Bot):
+	# def __init__(self, *, command_prefix: str, intents: Intents):
+	# 	super().__init__(command_prefix=command_prefix, intents=intents)
+
+	async def setup_hook(self):
+		await self.tree.sync()
+
+bot = _Bot(command_prefix="/", intents=intents)
 
 
 ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS) if AI_API_KEY and AI_SYSTEM_PROMPT else None
@@ -59,15 +68,15 @@ async def on_message(message: Message) -> None:
 	argumentsCount = len(commandSubcommandString)
 	match command := commandSubcommandString[0].casefold():
 		case "addtext":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
 		case "block":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=blockedGroup)
 		case "clear":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -89,13 +98,13 @@ async def on_message(message: Message) -> None:
 					case "vectorstore_requests":
 						await message_clear(message, objects=(vectorstoreRequests,))
 					case _:
-						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 		case "distrust":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "hasrole":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			else:
 				match commandSubcommandString[1].casefold():
 					case "blocked":
@@ -105,11 +114,11 @@ async def on_message(message: Message) -> None:
 					case "trusted":
 						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=trustedGroup)
 					case _:
-						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 		case "help":
-			await message_help(message)
+			await message_help(message, " ".join(commandSubcommandString[1:]) if argumentsCount >= 2 else None)
 		case "load":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -130,19 +139,17 @@ async def on_message(message: Message) -> None:
 					case "vectorstore_requests":
 						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstoreRequests,), trustedGroup=trustedGroup)
 					case _:
-						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 		case "permit":
 			await reaction_newOrUpdateRequest(message, message.author, requests=permissionRequests)
-		case "ping":
-			await message_ping(message, bot=bot)
 		# case "removetext":
-		# 	if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+		# 	if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 		# 	elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 		# 	else: await message_remove(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
 		case "revoke":
 			await message_remove(message, str(message.author.id), obj=permittingGroup)
 		case "save":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else:
 				match commandSubcommandString[1].casefold():
@@ -163,13 +170,13 @@ async def on_message(message: Message) -> None:
 					case "vectorstore_requests":
 						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstoreRequests,), trustedGroup=trustedGroup)
 					case _:
-						await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 		case "trust":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_add(message, *commandSubcommandString[1:], obj=trustedGroup)
 		case "unblock":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, DISCORD_COMMAND_DOCUMENTATION[command])
+			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
 			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
 			else: await message_remove(message, *commandSubcommandString[1:], obj=blockedGroup)
 		case _:
@@ -197,6 +204,22 @@ async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 		for requestsList, obj in ((vectorstoreRequests, vectorstore), (permissionRequests, permittingGroup)):
 			if (record := requestsList[reaction.message]) is None or member.id != record["recipientID"]: continue
 			await reaction_requestAnswered(reaction, reaction.emoji == "✅", requests=requestsList, obj=obj)
+
+
+@bot.tree.command(name="help", description=DISCORD_COMMAND_DOCUMENTATION["help"][1])
+@describe(
+	command = "(Optional) The command you want info about. If not provided, prints info about all commands."
+)
+async def command_help(interaction: Interaction, command: str | None = None) -> None:
+	"""Returns the bot's latency."""
+	await message_help(interaction, command)
+
+
+@bot.tree.command(name="ping", description=DISCORD_COMMAND_DOCUMENTATION["ping"][1])
+async def command_ping(interaction: Interaction) -> None:
+	"""Returns the bot's latency."""
+	await message_ping(interaction, bot=bot)
+	
 
 
 bot.run(DISCORD_BOT_TOKEN.get_secret_value())

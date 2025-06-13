@@ -2,10 +2,11 @@ from discord import Interaction, Message, WebhookMessage
 from typing import overload
 
 class Output:
-	MAX_DISCORD_CHARACTER_LIMIT: int = 2000
+	DISCORD_MESSAGE_CHARACTER_LIMIT: int = 2000
+	DISCORD_DESCRIPTION_CHARACTER_LIMIT: int = 100
 
 	@staticmethod
-	def findSentenceEnd(text: str, minimumLength: int, desiredCharacterLimit: int = MAX_DISCORD_CHARACTER_LIMIT) -> int:
+	def findSentenceEnd(text: str, minimumLength: int, desiredCharacterLimit: int = DISCORD_MESSAGE_CHARACTER_LIMIT) -> int:
 		if desiredCharacterLimit <= 0: raise ValueError(f"Invalid desired character limit provided: {desiredCharacterLimit}")
 		if len(text) < desiredCharacterLimit: return len(text)
 		SENTENCE_ENDING_CHARACTERS = {".", "!", "?", ")", "\n"}
@@ -25,7 +26,7 @@ class Output:
 		return desiredCharacterLimit
 
 	@staticmethod
-	def splitIntoSentences(text: str, desiredCharacterLimit: int = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[str]:
+	def splitIntoSentences(text: str, desiredCharacterLimit: int = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[str]:
 		segments: list[str] = []
 		minimumLength = int(0.2*desiredCharacterLimit)
 		while len(text) > desiredCharacterLimit:
@@ -38,18 +39,23 @@ class Output:
 		return segments + [text]
 
 	@staticmethod
+	def truncate(text: str, desiredCharacterLimit: int = DISCORD_MESSAGE_CHARACTER_LIMIT) -> str:
+		if not (splitText := Output.splitIntoSentences(text, desiredCharacterLimit - 1)): return ""
+		return splitText[0] + ("…" if len(splitText) > 1 else "")
+
+	@staticmethod
 	@overload
-	async def replyWithinCharacterLimit(message: Interaction, text: str, limit: int | None = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[WebhookMessage]:
+	async def replyWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[WebhookMessage]:
 		raise NotImplementedError
 
 	@staticmethod
 	@overload
-	async def replyWithinCharacterLimit(message: Message, text: str, limit: int | None = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[Message]:
+	async def replyWithinCharacterLimit(message: Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[Message]:
 		raise NotImplementedError
 
 	# TODO: Do multiple replies even work with InteractionResponse? If not, should support for that be removed?
 	@staticmethod
-	async def replyWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message] | list[WebhookMessage]:
+	async def replyWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message] | list[WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)
 		brokenText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
 		return [
@@ -60,20 +66,34 @@ class Output:
 	
 	@staticmethod
 	@overload
-	async def editWithinCharacterLimit(message: Interaction, text: str, limit: int | None = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message | WebhookMessage]:
+	async def editWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message | WebhookMessage]:
 		"""NOTE: Not implemented yet."""
 		raise NotImplementedError
 
 	@staticmethod
 	@overload
-	async def editWithinCharacterLimit(message: Message, text: str, limit: int | None = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[Message]:
+	async def editWithinCharacterLimit(message: Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[Message]:
 		raise NotImplementedError
 
 	@staticmethod
-	async def editWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = MAX_DISCORD_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message | WebhookMessage]:
+	async def editWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message | WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)
 		brokenText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
 		if not brokenText: return []
 		if isinstance(message, Interaction): raise NotImplementedError
 		await message.edit(content=brokenText[0])
 		return [message] + [await message.reply(segment, mention_author=False) for segment in brokenText[1:] if segment]
+	
+	@staticmethod
+	async def indicateSuccess(message: Interaction | Message, text: str | None = None) -> None:
+		if isinstance(message, Message):
+			await message.add_reaction("✅")
+			return
+		await Output.replyWithinCharacterLimit(message, text if text is not None else "✅")
+
+	@staticmethod
+	async def indicateFailure(message: Interaction | Message, error: str | None = None) -> None:
+		if isinstance(message, Message):
+			await message.add_reaction("❌")
+			if error is None: return
+		await Output.replyWithinCharacterLimit(message, error if error is not None else "A failure occurred.")

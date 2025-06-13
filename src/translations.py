@@ -99,6 +99,9 @@ class MessagesTexts:
 		"English": """Here are the messages in my corpus most likely to be relevant to your question:
 [messages]""",
 	}
+	BLOCKED: dict[SupportedLanguages, str] = {
+		"English": f"`You are blocked from interacting with this bot.",
+	}
 	# Supported substitutions: [descriptions], [emote]
 	HELP: dict[SupportedLanguages, str] = {
 		"English": """Hi! I'm a chatbot designed to answer basic questions about whatever corpus I was given.
@@ -117,6 +120,10 @@ For messages sent after I'm added, trusted users can also request to add existin
 	}
 	LOAD__ERROR: dict[SupportedLanguages, str] = {
 		"English": "An error occurred while loading the object.",
+	}
+	# Supported substitutions: [command]
+	NOT_OWNER: dict[SupportedLanguages, str] = {
+		"English": f"`[command]` is an owner-only command.",
 	}
 	# Supported substitutions: [command]
 	NOT_TRUSTED: dict[SupportedLanguages, str] = {

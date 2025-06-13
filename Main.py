@@ -3,6 +3,7 @@ from discord.app_commands import describe
 from discord.ext.commands import Bot # type: ignore
 from pydantic import SecretStr
 from sys import argv
+from typing import Literal
 import os
 
 from Settings import *
@@ -20,9 +21,6 @@ intents = Intents.default()
 intents.message_content = True
 
 class _Bot(Bot):
-	# def __init__(self, *, command_prefix: str, intents: Intents):
-	# 	super().__init__(command_prefix=command_prefix, intents=intents)
-
 	async def setup_hook(self):
 		await self.tree.sync()
 
@@ -48,139 +46,28 @@ async def on_message(message: Message) -> None:
 	if bot.user not in message.mentions or message.author == bot.user or bot.user is None:
 		return
 	# If user is blacklisted and not an owner, ignore
-	if message.author.id in blockedGroup and (bot.owner_ids is None or message.author.id not in bot.owner_ids):
-		await message.add_reaction("❌")
-		return
+	if message.author.id in blockedGroup and not await bot.is_owner(message.author):
+		return await message_blocked(message)
 	# Remove ping from message
 	originalInput = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
 	# If message is for another bot, ignore
 	if any(originalInput.startswith(otherBotPrefix) for otherBotPrefix in DISCORD_OTHER_BOT_PREFIXES):
 		return
-	commandSubcommandString = originalInput.split(maxsplit=3)
+	commandSubcommandString = originalInput.split(maxsplit=2)
 	# If bot was pinged without any other commands: print help message
 	if not commandSubcommandString:
-		await message_help(message)
-		return
+		return await message_help(message)
 	# Otherwise decipher command:
-	# TODO: Convert most of these into slash commands
-	# TODO: Consolidate block/trust and unblock/distrust under addrole/removerole
+	# TODO: Convert /permit into a slash command
 	# TODO: Rename permitting/revoking to waiving/reinstating?
 	argumentsCount = len(commandSubcommandString)
-	match command := commandSubcommandString[0].casefold():
-		case "addtext":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else: await message_add(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
-		case "block":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else: await message_add(message, *commandSubcommandString[1:], obj=blockedGroup)
-		case "clear":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else:
-				match commandSubcommandString[1].casefold():
-					case "all":
-						# await message_clear(message, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests))
-						await message_clear(message, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstoreRequests))
-					case "blocked_group":
-						await message_clear(message, objects=(blockedGroup,))
-					case "cache":
-						await message_clear(message, objects=(cache,))
-					case "permitting_group":
-						await message_clear(message, objects=(permittingGroup,))
-					case "permitting_requests":
-						await message_clear(message, objects=(permissionRequests,))
-					case "trusted_group":
-						await message_clear(message, objects=(trustedGroup,))
-					# case "vectorstore":
-					# 	await message_clear(message, objects=(vectorstore,))
-					case "vectorstore_requests":
-						await message_clear(message, objects=(vectorstoreRequests,))
-					case _:
-						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-		case "distrust":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else: await message_remove(message, *commandSubcommandString[1:], obj=trustedGroup)
-		case "hasrole":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			else:
-				match commandSubcommandString[1].casefold():
-					case "blocked":
-						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=blockedGroup)
-					case "permitting":
-						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=permittingGroup)
-					case "trusted":
-						await message_isin(message, commandSubcommandString[2] if argumentsCount >= 3 else str(message.author.id), obj=trustedGroup)
-					case _:
-						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
+	match commandSubcommandString[0].casefold():
 		case "help":
-			await message_help(message, " ".join(commandSubcommandString[1:]) if argumentsCount >= 2 else None)
-		case "load":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else:
-				match commandSubcommandString[1].casefold():
-					case "all":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests), trustedGroup=trustedGroup)
-					case "blocked_group":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup,), trustedGroup=trustedGroup)
-					case "cache":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(cache,), trustedGroup=trustedGroup)
-					case "permitting_group":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permittingGroup,), trustedGroup=trustedGroup)
-					case "permitting_requests":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permissionRequests,), trustedGroup=trustedGroup)
-					case "trusted_group":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(trustedGroup,), trustedGroup=trustedGroup)
-					case "vectorstore":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstore,), trustedGroup=trustedGroup)
-					case "vectorstore_requests":
-						await message_load(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstoreRequests,), trustedGroup=trustedGroup)
-					case _:
-						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
+			return await message_help(message, commandSubcommandString[1] if argumentsCount >= 2 else None)
 		case "permit":
-			await reaction_newOrUpdateRequest(message, message.author, requests=permissionRequests)
-		# case "removetext":
-		# 	if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-		# 	elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-		# 	else: await message_remove(message, " ".join(commandSubcommandString[1:]), obj=vectorstore)
-		case "revoke":
-			await message_remove(message, str(message.author.id), obj=permittingGroup)
-		case "save":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else:
-				match commandSubcommandString[1].casefold():
-					case "all":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests), trustedGroup=trustedGroup)
-					case "blocked_group":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(blockedGroup,), trustedGroup=trustedGroup)
-					case "cache":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(cache,), trustedGroup=trustedGroup)
-					case "permitting_group":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permittingGroup,), trustedGroup=trustedGroup)
-					case "permitting_requests":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(permissionRequests,), trustedGroup=trustedGroup)
-					case "trusted_group":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(trustedGroup,), trustedGroup=trustedGroup)
-					case "vectorstore":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstore,), trustedGroup=trustedGroup)
-					case "vectorstore_requests":
-						await message_save(message, " ".join(commandSubcommandString[2:]) if argumentsCount >= 3 else None, objects=(vectorstoreRequests,), trustedGroup=trustedGroup)
-					case _:
-						await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-		case "trust":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else: await message_add(message, *commandSubcommandString[1:], obj=trustedGroup)
-		case "unblock":
-			if argumentsCount < 2: await Output.replyWithinCharacterLimit(message, ": ".join(DISCORD_COMMAND_DOCUMENTATION[command]))
-			elif message.author.id not in trustedGroup: await message_notTrusted(message, command)
-			else: await message_remove(message, *commandSubcommandString[1:], obj=blockedGroup)
+			return await reaction_newOrUpdateRequest(message, message.author, requests=permissionRequests)
 		case _:
-			await message_ask(message, originalInput, ai=ai, cache=cache, cooldown=cooldown, vectorstore=vectorstore)
+			return await message_ask(message, originalInput, ai=ai, cache=cache, cooldown=cooldown, vectorstore=vectorstore)
 
 
 @bot.event
@@ -193,8 +80,7 @@ async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 		if reaction.emoji != DISCORD_REQUEST_ADDITION_EMOJI or member.id not in trustedGroup:
 			return
 		if reaction.message.author.id == member.id or reaction.message.author.id in permittingGroup:
-			await reaction_requestAnswered(reaction, True, requests=vectorstoreRequests, obj=vectorstore)
-			return
+			return await reaction_requestAnswered(reaction, True, requests=vectorstoreRequests, obj=vectorstore)
 		await reaction_newOrUpdateRequest(reaction, member, requests=vectorstoreRequests)
 	# If it is on a request message...
 	else:
@@ -206,20 +92,133 @@ async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 			await reaction_requestAnswered(reaction, reaction.emoji == "✅", requests=requestsList, obj=obj)
 
 
-@bot.tree.command(name="help", description=DISCORD_COMMAND_DOCUMENTATION["help"][1])
+@bot.tree.command(name="add", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["add"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
 @describe(
-	command = "(Optional) The command you want info about. If not provided, prints info about all commands."
+	object = "The object being added to.",
+	entry = "The entry being added to the object."
+)
+async def command_add(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group", "Vectorstore"], entry: str) -> None:
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
+	if interaction.user.id not in trustedGroup and not await bot.is_owner(interaction.user): return await message_notTrusted(interaction, "/add")
+	await message_add(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup if object == "Trusted Group" else vectorstore)
+
+
+@bot.tree.command(name="ask", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ask"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	query = "Your query.",
+)
+async def command_ask(interaction: Interaction, query: str) -> None:
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
+	await message_ask(interaction, query, ai=ai, cache=cache, cooldown=cooldown, vectorstore=vectorstore)
+
+
+@bot.tree.command(name="clear", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["clear"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	object = "The object to clear."
+)
+# async def command_clear(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"]) -> None:
+async def command_clear(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore Requests"]) -> None:
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
+	if interaction.user.id not in trustedGroup and not await bot.is_owner(interaction.user): return await message_notTrusted(interaction, "/clear")
+	await message_clear(interaction, objects=(
+		(blockedGroup,) if object == "Blocked Group" \
+		else (cache,) if object == "Cache" \
+		else (permittingGroup,) if object == "Permitting Group" \
+		else (permissionRequests,) if object == "Permitting Requests" \
+		else (trustedGroup,) if object == "Trusted Group" \
+		# else (vectorstore,) if object == "Vectorstore" \
+		else (vectorstoreRequests,) if object == "Vectorstore Requests" \
+		# else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
+		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstoreRequests)
+	))
+
+
+@bot.tree.command(name="contains", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["contains"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	group = "The group to test.",
+	user = "(Optional) The user ID to test. If omitted, defaults to yourself."
+)
+async def command_contains(interaction: Interaction, group: Literal["Blocked Group", "Permitting Group", "Trusted Group"], user: str | None = None) -> None:
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
+	await message_contains(interaction, user if user is not None else str(interaction.user.id), obj=(
+		blockedGroup if group == "Blocked Group" \
+		else permittingGroup if group == "Permitting Group" \
+		else trustedGroup
+	))
+
+
+@bot.tree.command(name="help", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["help"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	command = "(Optional) The command you want info about. If omitted, prints info about all commands."
 )
 async def command_help(interaction: Interaction, command: str | None = None) -> None:
-	"""Returns the bot's latency."""
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	await message_help(interaction, command)
 
 
-@bot.tree.command(name="ping", description=DISCORD_COMMAND_DOCUMENTATION["ping"][1])
+@bot.tree.command(name="load", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["load"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	object = "The object to load.",
+	filepath = "(Optional) The filepath to use. If omitted, the most recent filepath is used."
+)
+async def command_load(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"], filepath: str | None = None) -> None:
+	if not await bot.is_owner(interaction.user): return await message_notOwner(interaction, "/load")
+	await message_load(interaction, filepath if object != "All" else None, objects=(
+		(blockedGroup,) if object == "Blocked Group" \
+		else (cache,) if object == "Cache" \
+		else (permittingGroup,) if object == "Permitting Group" \
+		else (permissionRequests,) if object == "Permitting Requests" \
+		else (trustedGroup,) if object == "Trusted Group" \
+		else (vectorstore,) if object == "Vectorstore" \
+		else (vectorstoreRequests,) if object == "Vectorstore Requests" \
+		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
+	))
+
+
+@bot.tree.command(name="ping", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ping"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
 async def command_ping(interaction: Interaction) -> None:
 	"""Returns the bot's latency."""
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	await message_ping(interaction, bot=bot)
-	
+
+
+@bot.tree.command(name="remove", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["remove"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	object = "The object being removed from.",
+	entry = "The entry being removed from the object."
+)
+# async def command_remove(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group", "Vectorstore"], entry: str) -> None:
+async def command_remove(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group"], entry: str) -> None:
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
+	if interaction.user.id not in trustedGroup and not await bot.is_owner(interaction.user): return await message_notTrusted(interaction, "/remove")
+	await message_remove(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup)
+	# await message_remove(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup if object == "Trusted Group" else vectorstore)
+
+
+@bot.tree.command(name="revoke", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["revoke"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+async def command_revoke(interaction: Interaction) -> None:
+	# Intentionally allow blocked users to use this command
+	await message_remove(interaction, str(interaction.user.id), obj=permittingGroup)
+
+
+@bot.tree.command(name="save", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["save"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	object = "The object to save.",
+	filepath = "(Optional) The filepath to use. If omitted, the most recent filepath is used."
+)
+async def command_save(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"], filepath: str | None = None) -> None:
+	if not await bot.is_owner(interaction.user): return await message_notOwner(interaction, "/save")
+	await message_save(interaction, filepath if object != "All" else None, objects=(
+		(blockedGroup,) if object == "Blocked Group" \
+		else (cache,) if object == "Cache" \
+		else (permittingGroup,) if object == "Permitting Group" \
+		else (permissionRequests,) if object == "Permitting Requests" \
+		else (trustedGroup,) if object == "Trusted Group" \
+		else (vectorstore,) if object == "Vectorstore" \
+		else (vectorstoreRequests,) if object == "Vectorstore Requests" \
+		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
+	))
+
 
 
 bot.run(DISCORD_BOT_TOKEN.get_secret_value())

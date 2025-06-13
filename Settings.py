@@ -46,20 +46,17 @@ DISCORD_OTHER_BOT_PREFIXES: set[str] = {
 }
 DISCORD_REQUEST_ADDITION_EMOJI: str = "↪️"
 DISCORD_COMMAND_DOCUMENTATION: dict[str, tuple[str, str]] = { # Command: (syntax, description)
-	"": ("[query]", "Looks up and generates an answer for the provided query."),
+	"ask": ("[/ask or ping me] [query]", "Looks up and generates an answer for the provided query."),
 	"help": ("/help [command (optional)]", "Prints my purpose and list of commands, or a single command if one is specified."),
 	"ping": ("/ping", "Returns my latency."),
-	"hasrole": ("hasrole [blocked|permitting|trusted] [user ID (optional)]", "Returns whether a user (defaulting to yourself) is blocked/permitting/trusted, respectively."),
-	"permit": ("permit", "Permits trusted users to add your messages to my corpus without individually requesting permission."),
-	"revoke": ("revoke", "Revokes your permission for trusted users to add your messages without individually requesting permission."),
-	"addtext": ('addtext "[text]"', "(Trusted only) Adds the provided text to my corpus."),
-	"clear": ("clear [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore_requests]", "(Trusted only) Clears the provided group/cache/requests list."),
-	"save": ("save [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore|vectorstore_requests] [filepath (optional)]", "(Trusted only) Saves the provided group/cache/requests list/corpus to the provided filepath, or their last-used filepath if none is provided."),
-	"load": ("load [all|blocked_group|cache|permitting_group|permitting_requests|trusted_group|vectorstore|vectorstore_requests] [filepath (optional)]", "(Trusted only) Loads the provided group/cache/requests list/corpus from the provided filepath, or their last-used filepath if none is provided."),
-	"block": ("block [user ID #1] ... [user ID #n]", "(Trusted only) Adds user(s) to the blocked group."),
-	"unblock": ("unblock [user ID #1] ... [user ID #n]", "(Trusted only) Removes user(s) from the blocked group."),
-	"trust": ("trust [user ID #1] ... [user ID #n]", "(Trusted only) Adds user(s) to the trusted group."),
-	"distrust": ("distrust [user ID #1] ... [user ID #n]", "(Trusted only) Removes user(s) from the trusted group."),
+	"contains": ("/contains [Blocked Group|Permitting Group|Trusted Group] [user ID (optional)]", "Returns whether the provided group contains the provided user (defaulting to yourself)."),
+	"permit": ("[ping me] permit", "Permits trusted users to add your messages to my corpus without individually requesting permission."),
+	"revoke": ("/revoke", "Revokes your permission for trusted users to add your messages without individually requesting permission."),
+	"add": ("/add [Blocked Group|Trusted Group|Vectorstore] [text/user ID]", "(Trusted only) Adds the provided text/user ID to the provided vectorstore/group."),
+	"clear": ("/clear [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore Requests]", "(Trusted only) Clears the provided object(s)."),
+	"remove": ("/remove [Blocked Group|Trusted Group] [user ID]", "(Trusted only) Removes the provided user ID from the provided group."),
+	"save": ("/save [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Saves the provided object to the provided filepath, or their last-used filepath if none is provided."),
+	"load": ("/load [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Loads the provided object from the provided filepath, or their last-used filepath if none is provided."),
 }
 
 """Groups settings"""

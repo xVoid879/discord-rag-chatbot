@@ -1,10 +1,10 @@
 from discord import Intents, Interaction, Member, Message, Reaction
 from discord.app_commands import describe
 from discord.ext.commands import Bot # type: ignore
+from os.path import abspath, dirname
 from pydantic import SecretStr
 from sys import argv
 from typing import Literal
-import os
 
 from Settings import *
 from src.messages import *
@@ -12,7 +12,7 @@ from src.reactions import *
 from src.translations import MainTexts, RequestsTexts
 
 if len(argv) < 1: raise RuntimeError(MainTexts.NO_ARGUMENTS_FOUND[LANGUAGE])
-CURRENT_DIRECTORY = os.path.abspath(os.path.dirname(argv[0]))
+CURRENT_DIRECTORY = abspath(dirname(argv[0]))
 if len(argv) < 2: raise RuntimeError(MainTexts.NO_DISCORD_BOT_TOKEN[LANGUAGE])
 DISCORD_BOT_TOKEN = SecretStr(argv[1])
 AI_API_KEY = SecretStr(argv[2]) if len(argv) >= 3 else None
@@ -93,17 +93,24 @@ async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 			if (record := requestsList[reaction.message]) is None or member.id != record["recipientID"]: continue
 			await reaction_requestAnswered(reaction, reaction.emoji == "✅", requests=requestsList, obj=obj, bot=bot)
 
+# TODO: Deleting a request message cancels the corresponding request
+
 
 @bot.tree.command(name="add", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["add"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object being added to.",
-	entry = "The entry being added to the object.",
-	source = "(For Vectorstores only, optional) The source link to the text, if any."
+	entry = "The entry being added to the object."
 )
-async def command_add(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group", "Vectorstore"], entry: str, source: str | None = None) -> None:
+async def command_add(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group", "Vectorstore"], entry: str) -> None:
 	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	if interaction.user.id not in trustedGroup and not await bot.is_owner(interaction.user): return await message_notTrusted(interaction, "/add")
-	await message_add(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup if object == "Trusted Group" else vectorstore, url=source if object == "Vectorstore" else None)
+	if object == "Vectorstore":
+		if (message := await Output.getMessageFromURL(entry, bot=bot)) is None: return await Output.indicateFailure(interaction)
+		if message.author == interaction.user or message.author.id in permittingGroup:
+			await reaction_requestAnswered(message, True, requests=vectorstoreRequests, obj=vectorstore, bot=bot)
+			return await Output.indicateSuccess(interaction)
+		return await reaction_newOrUpdateRequest(message, interaction.user, requests=vectorstoreRequests)
+	else: await message_add(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup)
 
 
 @bot.tree.command(name="ask", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ask"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))

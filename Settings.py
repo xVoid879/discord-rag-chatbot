@@ -55,7 +55,7 @@ DISCORD_COMMAND_DOCUMENTATION: dict[str, tuple[str, str]] = { # Command: (syntax
 	"contains": ("/contains [Blocked Group|Permitting Group|Trusted Group] [user ID (optional)]", "Returns whether the provided group contains the provided user (defaulting to yourself)."),
 	"permit": ("[ping me] permit", "Permits trusted users to add your messages to my corpus without individually requesting permission."),
 	"revoke": ("/revoke", "Revokes your permission for trusted users to add your messages without individually requesting permission."),
-	"add": ("/add [Blocked Group|Trusted Group|Vectorstore] [text/user ID]", "(Trusted only) Adds the provided text/user ID to the provided vectorstore/group."),
+	"add": ("/add [Blocked Group|Trusted Group|Vectorstore] [user ID/message URL]", "(Trusted only) Adds the provided user ID/requests to add the linked message to the provided group/vectorstore."),
 	"clear": ("/clear [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore Requests]", "(Trusted only) Clears the provided object(s)."),
 	"remove": ("/remove [Blocked Group|Trusted Group] [user ID]", "(Trusted only) Removes the provided user ID from the provided group."),
 	"save": ("/save [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Saves the provided object to the provided filepath, or their last-used filepath if none is provided."),

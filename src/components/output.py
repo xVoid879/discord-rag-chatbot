@@ -1,9 +1,20 @@
 from discord import Interaction, Message, WebhookMessage
+from discord import Thread, StageChannel, TextChannel, VoiceChannel
+from discord.ext.commands import Bot # type: ignore
 from typing import overload
 
 class Output:
 	DISCORD_MESSAGE_CHARACTER_LIMIT: int = 2000
 	DISCORD_DESCRIPTION_CHARACTER_LIMIT: int = 100
+
+	@staticmethod
+	async def getMessageFromURL(url: str, *, bot: Bot) -> Message | None:
+		splitURL = url.split("/", maxsplit=7)
+		if len(splitURL) < 7: return None
+		try:
+			channelID, messageID = int(splitURL[5]), int(splitURL[6])
+		except ValueError: return None
+		return (await channel.fetch_message(messageID)) if (channel := bot.get_channel(channelID)) is not None and isinstance(channel, (StageChannel, Thread, TextChannel, VoiceChannel)) else None
 
 	@staticmethod
 	def findSentenceEnd(text: str, minimumLength: int, desiredCharacterLimit: int = DISCORD_MESSAGE_CHARACTER_LIMIT) -> int:
@@ -53,7 +64,6 @@ class Output:
 	async def replyWithinCharacterLimit(message: Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False) -> list[Message]:
 		raise NotImplementedError
 
-	# TODO: Do multiple replies even work with InteractionResponse? If not, should support for that be removed?
 	@staticmethod
 	async def replyWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message] | list[WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)

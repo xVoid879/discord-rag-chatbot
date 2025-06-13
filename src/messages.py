@@ -14,20 +14,15 @@ from src.components.vectorstore import Vectorstore
 from src.translations import MessagesTexts, getLanguagePlural
 
 
-async def message_add(source: Interaction | Message, *entries: str, obj: Group | Vectorstore, url: str | None = None) -> None:
+async def message_add(source: Interaction | Message, *entries: str, obj: Group) -> None:
 	"""(Trusted command) Adds the specified entry to the specified object."""
 	# Temporary
-	reformattedEntries = list(entries)
-	if isinstance(obj, Vectorstore):
-		if isinstance(source, Message) and len([word for text in entries for word in text.split()]) == len(entries):
-			return await Output.indicateFailure(source, MessagesTexts.ADD__SINGLE_WORDS_ONLY[LANGUAGE])
-		savedCount = obj.add(reformattedEntries, sources=url)
-	elif isinstance(obj, Group):
-		reformattedEntries = [int(e.strip("<@!> ")) for e in entries]
-		savedCount = obj.add(reformattedEntries)
+	savedCount = 0
+	if isinstance(obj, Group):
+		savedCount = obj.add([int(entry.strip("<@!> ")) for entry in entries])
 
 	if savedCount < len(entries):
-		return await Output.indicateFailure(source, MessagesTexts.ADD__ERROR[LANGUAGE].replace("[count]", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
+		return await Output.indicateFailure(source, MessagesTexts.ADD__ERROR[LANGUAGE].replace("[count]", f"{len(entries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(entries) - savedCount)))
 	await Output.indicateSuccess(source)
 
 
@@ -112,17 +107,16 @@ async def message_ping(interaction: Interaction | Message, *, bot: Bot) -> None:
 
 async def message_remove(source: Interaction | Message, *entries: str, obj: Group | Vectorstore) -> None:
 	"""(Trusted command) Removes the specified entries from the specified object."""
-	reformattedEntries = list(entries)
+	savedCount = 0
 	if isinstance(obj, Vectorstore):
-		if len([word for text in entries for word in text.split()]) == len(entries):
+		if isinstance(source, Message) and len([word for text in entries for word in text.split()]) == len(entries):
 			return await Output.indicateFailure(source, MessagesTexts.REMOVE__SINGLE_WORDS_ONLY[LANGUAGE])
-		savedCount = obj.remove(reformattedEntries)
+		savedCount = obj.remove(entries)
 	elif isinstance(obj, Group):
-		reformattedEntries = [int(e.strip("<@!> ")) for e in entries]
-		savedCount = obj.remove(reformattedEntries)
+		savedCount = obj.remove([int(entry.strip("<@!> ")) for entry in entries])
 
 	if savedCount < len(entries):
-		return await Output.indicateFailure(source, MessagesTexts.REMOVE__ERROR[LANGUAGE].replace("[count]", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
+		return await Output.indicateFailure(source, MessagesTexts.REMOVE__ERROR[LANGUAGE].replace("[count]", f"{len(entries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(entries) - savedCount)))
 	await Output.indicateSuccess(source)
 
 

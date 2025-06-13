@@ -45,7 +45,7 @@ class Output:
 
 	@staticmethod
 	@overload
-	async def replyWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[WebhookMessage]:
+	async def replyWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[WebhookMessage]:
 		raise NotImplementedError
 
 	@staticmethod
@@ -55,7 +55,7 @@ class Output:
 
 	# TODO: Do multiple replies even work with InteractionResponse? If not, should support for that be removed?
 	@staticmethod
-	async def replyWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message] | list[WebhookMessage]:
+	async def replyWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message] | list[WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)
 		brokenText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
 		return [
@@ -66,7 +66,7 @@ class Output:
 	
 	@staticmethod
 	@overload
-	async def editWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message | WebhookMessage]:
+	async def editWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message | WebhookMessage]:
 		"""NOTE: Not implemented yet."""
 		raise NotImplementedError
 
@@ -76,7 +76,7 @@ class Output:
 		raise NotImplementedError
 
 	@staticmethod
-	async def editWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = True) -> list[Message | WebhookMessage]:
+	async def editWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message | WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)
 		brokenText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
 		if not brokenText: return []
@@ -88,7 +88,7 @@ class Output:
 	async def indicateSuccess(message: Interaction | Message, text: str | None = None) -> None:
 		if isinstance(message, Message):
 			await message.add_reaction("✅")
-			return
+			if text is None: return
 		await Output.replyWithinCharacterLimit(message, text if text is not None else "✅")
 
 	@staticmethod

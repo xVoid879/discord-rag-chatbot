@@ -12,27 +12,22 @@ from src.components.output import Output
 from src.components.requests import Requests
 from src.components.vectorstore import Vectorstore
 from src.translations import MessagesTexts, getLanguagePlural
-# from typing import Any, Coroutine, Iterable
-
-# class Command:
-# 	minimumArguments: int
-# 	requiresTrusted: bool
-# 	function: Coroutine[Any, Any, None]
-# 	arguments: Iterable[Any]
 
 
-async def message_add(source: Interaction | Message, *entries: str, obj: Group | Vectorstore) -> None:
+async def message_add(source: Interaction | Message, *entries: str, obj: Group | Vectorstore, url: str | None = None) -> None:
 	"""(Trusted command) Adds the specified entry to the specified object."""
 	# Temporary
 	reformattedEntries = list(entries)
 	if isinstance(obj, Vectorstore):
-		if len([word for text in entries for word in text.split()]) == len(entries):
+		if isinstance(source, Message) and len([word for text in entries for word in text.split()]) == len(entries):
 			return await Output.indicateFailure(source, MessagesTexts.ADD__SINGLE_WORDS_ONLY[LANGUAGE])
+		savedCount = obj.add(reformattedEntries, sources=url)
 	elif isinstance(obj, Group):
 		reformattedEntries = [int(e.strip("<@!> ")) for e in entries]
+		savedCount = obj.add(reformattedEntries)
 
-	if (savedCount := obj.add(reformattedEntries)) < len(entries):
-		return await Output.indicateFailure(source, MessagesTexts.ADD__ERROR[LANGUAGE].replace("count", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
+	if savedCount < len(entries):
+		return await Output.indicateFailure(source, MessagesTexts.ADD__ERROR[LANGUAGE].replace("[count]", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
 	await Output.indicateSuccess(source)
 
 
@@ -59,9 +54,9 @@ async def message_ask(
 			await Output.replyWithinCharacterLimit(source, response + "\n-# " + MessagesTexts.ASK__CACHED_RESPONSE[LANGUAGE] + (" " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
 			return
 	# Retrieve context and scores from vectorstore
-	context = "\n\n-------------".join(f"__(Estimated relevance: **{score:.2%}**)__\n{text}".strip() for text, score in vectorstore.query(query)) if vectorstore is not None else MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]
+	context = "\n\n".join(f"{'' if ai is not None else (sourceURL if sourceURL is not None else '[No URL]') + ' '}_(Estimated relevance: **{score:.2%}**)_\n{text}".strip() for text, sourceURL, score in vectorstore.query(query)) if vectorstore is not None else MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]
 	if context and context != MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]:
-		context = "\n-------------" + context
+		context = "\n" + context
 	# If context is required, and no context is found, return error
 	elif AI_REQUIRE_CONTEXT:
 		await Output.replyWithinCharacterLimit(source, MessagesTexts.ASK__ERROR_IF_NO_CONTEXT[LANGUAGE])
@@ -85,14 +80,18 @@ async def message_help(source: Interaction | Message, command: str | None = None
 	"""Prints the help message."""
 	await Output.replyWithinCharacterLimit(source, f"`{DISCORD_COMMAND_DOCUMENTATION[command][0]}`: {DISCORD_COMMAND_DOCUMENTATION[command][1]}" if command is not None and command in DISCORD_COMMAND_DOCUMENTATION else MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- `{syntax}`: {description}" for syntax, description in DISCORD_COMMAND_DOCUMENTATION.values())).replace("[emote]", DISCORD_REQUEST_ADDITION_EMOJI))
 
-# TODO: Extend to allow checking if a recipient ID has any requests pending.
-async def message_contains(source: Interaction | Message, *entries: str, obj: Group) -> None:
+async def message_contains(source: Interaction | Message, *entries: str, obj: Group | Requests) -> None:
 	"""Reacts whether the specified entry is stored in the specified object."""
 	reformattedEntries = entries
-	if isinstance(obj, Group):
+	if isinstance(obj, (Group, Requests)):
 		reformattedEntries = tuple(int(entry.strip("<@!> ")) for entry in entries)
 
 	await Output.indicateSuccess(source, "Yes." if isinstance(source, Interaction) else None) if all(entry in obj for entry in reformattedEntries) else await Output.indicateFailure(source, "No." if isinstance(source, Interaction) else None)
+
+
+async def message_getsize(source: Interaction | Message, *, obj: Cache | Group | Requests | Vectorstore) -> None:
+	"""Returns the object's size."""
+	await Output.replyWithinCharacterLimit(source, f"{len(obj)}.")
 
 
 async def message_load(source: Interaction | Message, filepaths: Iterable[str] | None = None, *, objects: Iterable[Cache | Group | Requests | Vectorstore], trustedGroup: Group | None = None) -> None:
@@ -117,11 +116,13 @@ async def message_remove(source: Interaction | Message, *entries: str, obj: Grou
 	if isinstance(obj, Vectorstore):
 		if len([word for text in entries for word in text.split()]) == len(entries):
 			return await Output.indicateFailure(source, MessagesTexts.REMOVE__SINGLE_WORDS_ONLY[LANGUAGE])
+		savedCount = obj.remove(reformattedEntries)
 	elif isinstance(obj, Group):
 		reformattedEntries = [int(e.strip("<@!> ")) for e in entries]
+		savedCount = obj.remove(reformattedEntries)
 
-	if (savedCount := obj.remove(reformattedEntries)) < len(entries):
-		return await Output.indicateFailure(source, MessagesTexts.REMOVE__ERROR[LANGUAGE].replace("count", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
+	if savedCount < len(entries):
+		return await Output.indicateFailure(source, MessagesTexts.REMOVE__ERROR[LANGUAGE].replace("[count]", f"{len(reformattedEntries) - savedCount}").replace("[plural]", getLanguagePlural(LANGUAGE, len(reformattedEntries) - savedCount)))
 	await Output.indicateSuccess(source)
 
 

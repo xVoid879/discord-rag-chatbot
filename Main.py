@@ -27,7 +27,7 @@ class _Bot(Bot):
 bot = _Bot(command_prefix="/", intents=intents)
 
 
-ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS) if AI_API_KEY and AI_SYSTEM_PROMPT else None
+ai = AI(AI_API_KEY, AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_INPUT_CHARACTERS, AI_MAX_OUTPUT_CHARACTERS) if AI_API_KEY and AI_SYSTEM_PROMPT else None
 cooldown = Cooldown(COOLDOWN_DURATION, COOLDOWN_CHECK_INTERVAL, COOLDOWN_MAX_QUERIES_BEFORE_ACTIVATION)
 cache = Cache(CACHE_MAX_SIZE, CACHE_EXPIRATION_TIME, CACHE_SEMANTIC_SIMILARITY_THRESHOLD, CACHE_FILEPATH)
 permissionRequests = Requests(RequestsTexts.PERMISSION_REQUEST[LANGUAGE], REQUESTS_PERMITTING_FILEPATH)
@@ -73,6 +73,8 @@ async def on_message(message: Message) -> None:
 @bot.event
 async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 	"""Decodes desired action upon a new reaction being added."""
+	if bot.user is None or member == bot.user:
+		return
 	# If the reaction is not on a request message...
 	if all((reaction.message not in vectorstoreRequests, reaction.message not in permissionRequests)):
 		# ...and it's not the designated emoji, or by a non-trusted user, ignore
@@ -80,7 +82,7 @@ async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 		if reaction.emoji != DISCORD_REQUEST_ADDITION_EMOJI or member.id not in trustedGroup:
 			return
 		if reaction.message.author.id == member.id or reaction.message.author.id in permittingGroup:
-			return await reaction_requestAnswered(reaction, True, requests=vectorstoreRequests, obj=vectorstore)
+			return await reaction_requestAnswered(reaction, True, requests=vectorstoreRequests, obj=vectorstore, bot=bot)
 		await reaction_newOrUpdateRequest(reaction, member, requests=vectorstoreRequests)
 	# If it is on a request message...
 	else:
@@ -89,18 +91,19 @@ async def on_reaction_add(reaction: Reaction, member: Member) -> None:
 		# Otherwise check both the vectorstore requests list and the permission requests list
 		for requestsList, obj in ((vectorstoreRequests, vectorstore), (permissionRequests, permittingGroup)):
 			if (record := requestsList[reaction.message]) is None or member.id != record["recipientID"]: continue
-			await reaction_requestAnswered(reaction, reaction.emoji == "✅", requests=requestsList, obj=obj)
+			await reaction_requestAnswered(reaction, reaction.emoji == "✅", requests=requestsList, obj=obj, bot=bot)
 
 
 @bot.tree.command(name="add", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["add"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object being added to.",
-	entry = "The entry being added to the object."
+	entry = "The entry being added to the object.",
+	source = "(For Vectorstores only, optional) The source link to the text, if any."
 )
-async def command_add(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group", "Vectorstore"], entry: str) -> None:
+async def command_add(interaction: Interaction, object: Literal["Blocked Group", "Trusted Group", "Vectorstore"], entry: str, source: str | None = None) -> None:
 	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	if interaction.user.id not in trustedGroup and not await bot.is_owner(interaction.user): return await message_notTrusted(interaction, "/add")
-	await message_add(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup if object == "Trusted Group" else vectorstore)
+	await message_add(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup if object == "Trusted Group" else vectorstore, url=source if object == "Vectorstore" else None)
 
 
 @bot.tree.command(name="ask", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ask"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
@@ -116,20 +119,18 @@ async def command_ask(interaction: Interaction, query: str) -> None:
 @describe(
 	object = "The object to clear."
 )
-# async def command_clear(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"]) -> None:
-async def command_clear(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore Requests"]) -> None:
+async def command_clear(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"]) -> None:
 	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	if interaction.user.id not in trustedGroup and not await bot.is_owner(interaction.user): return await message_notTrusted(interaction, "/clear")
 	await message_clear(interaction, objects=(
-		(blockedGroup,) if object == "Blocked Group" \
-		else (cache,) if object == "Cache" \
-		else (permittingGroup,) if object == "Permitting Group" \
-		else (permissionRequests,) if object == "Permitting Requests" \
-		else (trustedGroup,) if object == "Trusted Group" \
-		# else (vectorstore,) if object == "Vectorstore" \
-		else (vectorstoreRequests,) if object == "Vectorstore Requests" \
-		# else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
-		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstoreRequests)
+		(blockedGroup,) if object == "Blocked Group"
+		else (cache,) if object == "Cache"
+		else (permittingGroup,) if object == "Permitting Group"
+		else (permissionRequests,) if object == "Permitting Requests"
+		else (trustedGroup,) if object == "Trusted Group"
+		else (vectorstore,) if object == "Vectorstore"
+		else (vectorstoreRequests,) if object == "Vectorstore Requests"
+		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
 	))
 
 
@@ -138,12 +139,30 @@ async def command_clear(interaction: Interaction, object: Literal["All", "Blocke
 	group = "The group to test.",
 	user = "(Optional) The user ID to test. If omitted, defaults to yourself."
 )
-async def command_contains(interaction: Interaction, group: Literal["Blocked Group", "Permitting Group", "Trusted Group"], user: str | None = None) -> None:
+async def command_contains(interaction: Interaction, group: Literal["Blocked Group", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore Requests"], user: str | None = None) -> None:
 	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	await message_contains(interaction, user if user is not None else str(interaction.user.id), obj=(
-		blockedGroup if group == "Blocked Group" \
-		else permittingGroup if group == "Permitting Group" \
-		else trustedGroup
+		blockedGroup if group == "Blocked Group"
+		else permittingGroup if group == "Permitting Group"
+		else permissionRequests if group == "Permitting Requests"
+		else trustedGroup if group == "Trusted Group"
+		else vectorstoreRequests
+	))
+
+@bot.tree.command(name="getsize", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["getsize"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@describe(
+	object = "The object whose size to return.",
+)
+async def command_getsize(interaction: Interaction, object: Literal["Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"]) -> None:
+	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
+	await message_getsize(interaction, obj=(
+		blockedGroup if object == "Blocked Group"
+		else cache if object == "Cache"
+		else permittingGroup if object == "Permitting Group"
+		else permissionRequests if object == "Permitting Requests"
+		else trustedGroup if object == "Trusted Group"
+		else vectorstore if object == "Vectorstore"
+		else vectorstoreRequests
 	))
 
 
@@ -164,15 +183,21 @@ async def command_help(interaction: Interaction, command: str | None = None) -> 
 async def command_load(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"], filepath: str | None = None) -> None:
 	if not await bot.is_owner(interaction.user): return await message_notOwner(interaction, "/load")
 	await message_load(interaction, filepath if object != "All" else None, objects=(
-		(blockedGroup,) if object == "Blocked Group" \
-		else (cache,) if object == "Cache" \
-		else (permittingGroup,) if object == "Permitting Group" \
-		else (permissionRequests,) if object == "Permitting Requests" \
-		else (trustedGroup,) if object == "Trusted Group" \
-		else (vectorstore,) if object == "Vectorstore" \
-		else (vectorstoreRequests,) if object == "Vectorstore Requests" \
+		(blockedGroup,) if object == "Blocked Group"
+		else (cache,) if object == "Cache"
+		else (permittingGroup,) if object == "Permitting Group"
+		else (permissionRequests,) if object == "Permitting Requests"
+		else (trustedGroup,) if object == "Trusted Group"
+		else (vectorstore,) if object == "Vectorstore"
+		else (vectorstoreRequests,) if object == "Vectorstore Requests"
 		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
 	))
+
+
+# @bot.tree.command(name="permit", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["permit"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+# async def command_permit(interaction: Interaction) -> None:
+# 	# Intentionally allow blocked users to use this command
+# 	await reaction_newOrUpdateRequest(interaction, interaction.user, requests=permissionRequests)
 
 
 @bot.tree.command(name="ping", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ping"][1], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
@@ -209,13 +234,13 @@ async def command_revoke(interaction: Interaction) -> None:
 async def command_save(interaction: Interaction, object: Literal["All", "Blocked Group", "Cache", "Permitting Group", "Permitting Requests", "Trusted Group", "Vectorstore", "Vectorstore Requests"], filepath: str | None = None) -> None:
 	if not await bot.is_owner(interaction.user): return await message_notOwner(interaction, "/save")
 	await message_save(interaction, filepath if object != "All" else None, objects=(
-		(blockedGroup,) if object == "Blocked Group" \
-		else (cache,) if object == "Cache" \
-		else (permittingGroup,) if object == "Permitting Group" \
-		else (permissionRequests,) if object == "Permitting Requests" \
-		else (trustedGroup,) if object == "Trusted Group" \
-		else (vectorstore,) if object == "Vectorstore" \
-		else (vectorstoreRequests,) if object == "Vectorstore Requests" \
+		(blockedGroup,) if object == "Blocked Group"
+		else (cache,) if object == "Cache"
+		else (permittingGroup,) if object == "Permitting Group"
+		else (permissionRequests,) if object == "Permitting Requests"
+		else (trustedGroup,) if object == "Trusted Group"
+		else (vectorstore,) if object == "Vectorstore"
+		else (vectorstoreRequests,) if object == "Vectorstore Requests"
 		else (blockedGroup, cache, permittingGroup, permissionRequests, trustedGroup, vectorstore, vectorstoreRequests)
 	))
 

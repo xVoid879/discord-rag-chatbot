@@ -27,6 +27,9 @@ class Cache(SaveableClass):
 			if expirationTime is not None and (not isinstance(expirationTime, (int, float)) or expirationTime < 0.): raise ValueError(CacheTexts.INVALID_EXPIRATION_TIME[LANGUAGE].replace("[time]", f"{expirationTime}"))
 			self._cache = TTLCache(maxSize, float("inf") if expirationTime is None else expirationTime) if maxSize > 0. and (expirationTime is None or expirationTime > 0.) else None
 
+	def __len__(self) -> int:
+		return len(self._cache) if self._cache is not None else 0
+
 	def __setitem__(self, key: str, value: tuple[str, NumpyArray]) -> None:
 		"""Associates the provided key to the provided value in the cache."""
 		if not isinstance(key, str): raise ValueError(CacheTexts.INVALID_KEY[LANGUAGE].replace("[key]", f"{key}"))

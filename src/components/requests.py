@@ -24,10 +24,13 @@ class Requests(SaveableClass):
 
 		if not self.load(filepath):
 			self._requests = {}
-
-	def __contains__(self, key: Message) -> bool:
-		return key in self._requests
 	
+	def __contains__(self, key: Message | int) -> bool:
+		return key in self._requests if isinstance(key, Message) else any(key == entry["recipientID"] for entry in self._requests.values())
+	
+	def __len__(self):
+		return len(self._requests)
+
 	def items(self) -> ItemsView[Message, RequestData]:
 		return self._requests.items()
 

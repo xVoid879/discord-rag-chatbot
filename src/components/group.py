@@ -12,6 +12,9 @@ class Group(SaveableClass):
 		if not self.load(filepath):
 			self._members = set(initialMembers) if initialMembers is not None else set()
 	
+	def __len__(self):
+		return len(self._members)
+
 	def add(self, memberID: int | Iterable[int]) -> int:
 		"""Adds texts to the group. Returns the number of users added."""
 		count = 0
@@ -21,8 +24,7 @@ class Group(SaveableClass):
 		return count
 	
 	def remove(self, memberID: int | Iterable[int]) -> int:
-		"""Removes texts from the group. Returns the number of users removed.
-		Not yet implemented."""
+		"""Removes users from the group. Returns the number of users removed."""
 		count = 0
 		for mID in ([memberID] if isinstance(memberID, int) else memberID):
 			if mID in self._members: self._members.remove(mID)
@@ -34,9 +36,6 @@ class Group(SaveableClass):
 	
 	def __contains__(self, memberID: int) -> bool:
 		return memberID in self._members
-	
-	def __len__(self) -> int:
-		return len(self._members)
 	
 	def save(self, filepath: str | None = None) -> bool:
 		"""Saves the group to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""

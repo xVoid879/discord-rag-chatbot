@@ -1,4 +1,5 @@
 from discord import Member, Message, Reaction, User
+from discord.ext.commands import Bot # type: ignore
 
 from Settings import *
 from src.components.group import Group
@@ -37,7 +38,7 @@ async def reaction_newOrUpdateRequest(source: Reaction | Message, member: Member
 		await requestMessages[-1].add_reaction("❌")
 		requests.add(requestMessages[-1], sourceMessage.author.id, [member.id], [sourceMessage])
 
-async def reaction_requestAnswered(reaction: Reaction, yes: bool, *, requests: Requests, obj: Group | Vectorstore) -> None:
+async def reaction_requestAnswered(reaction: Reaction, yes: bool, *, requests: Requests, obj: Group | Vectorstore, bot: Bot) -> None:
 	"""Handles a response to a request."""
 	record = requests[reaction.message]
 	if yes:
@@ -50,11 +51,15 @@ async def reaction_requestAnswered(reaction: Reaction, yes: bool, *, requests: R
 		else:
 			# If the request was for a user's message to be added to the vectorstore, and no record exists, it must have been self/permitting-added
 			if record is None:
-				if (count := obj.add(reaction.message.content)) < 1:
+				if (count := obj.add(reaction.message.content, sources=reaction.message.jump_url)) < 1:
 					await Output.replyWithinCharacterLimit(reaction.message, "Failed to add [count] message[plural] to the vectorstore.".replace("[count]", str(1 - count)).replace("[plural]", getLanguagePlural(LANGUAGE, 1 - count)))
+					return
+				if bot.user is not None:
+					await reaction.message.add_reaction("✅")
+					await reaction.message.remove_reaction("✅", bot.user)
 				return
 			# Otherwise it was an individual request that was accepted
-			elif (count := obj.add(desiredMessage.content for desiredMessage in record["desiredMessages"])) < len(record["desiredMessages"]):
+			elif (count := obj.add((desiredMessage.content for desiredMessage in record["desiredMessages"]), sources=(desiredMessage.jump_url for desiredMessage in record["desiredMessages"]))) < len(record["desiredMessages"]):
 				await Output.replyWithinCharacterLimit(reaction.message, "Failed to add [count] message[plural] to the vectorstore.".replace("[count]", str(len(record["desiredMessages"]) - count)).replace("[plural]", getLanguagePlural(LANGUAGE, len(record["desiredMessages"]) - count)))
 	# Delete record of request
 	if not requests.remove(reaction.message):

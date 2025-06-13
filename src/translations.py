@@ -17,8 +17,12 @@ class AITexts:
 		"English": "Context: [context]"
 	}
 	# Supported substitutions: [count]
-	INVALID_MAX_CHARACTERS_TYPE: dict[SupportedLanguages, str] = {
+	INVALID_MAX_INPUT_CHARACTERS_TYPE: dict[SupportedLanguages, str] = {
 		"English": "Invalid maximum input characters count provided: [count]"
+	}
+	# Supported substitutions: [count]
+	INVALID_MAX_OUTPUT_CHARACTERS_TYPE: dict[SupportedLanguages, str] = {
+		"English": "Invalid maximum output characters count provided: [count]"
 	}
 	# Supported substitutions: [prompt]
 	INVALID_SYSTEM_PROMPT: dict[SupportedLanguages, str] = {

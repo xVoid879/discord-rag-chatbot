@@ -1,5 +1,6 @@
 # import faiss
 # from fastembed import TextEmbedding
+from itertools import repeat
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import FAISS
 import os
@@ -31,21 +32,30 @@ class Vectorstore(SaveableClass):
 		if not self.load(filepath):
 			self._vectorstore = FAISS.from_texts([""], EMBEDDING_MODEL)
 
-	def query(self, query: str, maxResults: int = 4) -> list[tuple[str, float]]:
-		"""Returns the most relevant results (text + score pairs) for the provided query, at or above the originally-specified relevance threshold."""
+	def __len__(self) -> int:
+		return self._vectorstore.index.ntotal # From Stack Overflow
+
+	def query(self, query: str, maxResults: int = 4) -> list[tuple[str, str | None, float]]:
+		"""Returns the most relevant results (text + score pairs + source URL) for the provided query, at or above the originally-specified relevance threshold."""
 		# embedding = list(EMBEDDING_MODEL.embed(query))[0]
 		# scores, indices = self._vectorstore.search(embedding, maxResults)
 		# ...
-		return sorted(((text.page_content, score) for text, score in self._vectorstore.similarity_search_with_relevance_scores(query, maxResults, score_threshold=self._minimumRelevance)), key=lambda textAndScore: -textAndScore[1]) # Negative key preserves order of equally-scored texts, which reverse=True would invert
+		return sorted(((text.page_content, url if isinstance(url := text.metadata.get("url"), str) else None, score) for text, score in self._vectorstore.similarity_search_with_relevance_scores(query, maxResults, score_threshold=self._minimumRelevance)), key=lambda textAndScore: -textAndScore[2]) # Negative key preserves order of equally-scored texts, which reverse=True would invert
 	
-	def add(self, text: str | Iterable[str]) -> int:
+	def add(self, texts: str | Iterable[str], sources: str | Iterable[str] | None = None) -> int:
 		"""Adds texts to the vectorstore. Returns the number of documents added."""
 		# embedding = list(EMBEDDING_MODEL.embed(text))[0]
 		# self._vectorstore.add(embedding)
 		# ...?
-		allTexts = [segment for t in ([text] if isinstance(text, str) else list(text)) for segment in (Output.splitIntoSentences(t, self._segmentSize, overlapSentences=True) if self._segmentSize is not None else [t]) ]
-		self._vectorstore.add_texts(allTexts)
-		return len(allTexts)
+		# if sources is not None and isinstance(texts, str) != isinstance(sources, str): return 0
+		splitTextsWithSources = [
+			(segment, source)
+			for text, source in zip([texts] if isinstance(texts, str) else texts, repeat(None) if sources is None else [sources] if isinstance(sources, str) else sources)
+			for segment in (Output.splitIntoSentences(text, self._segmentSize, overlapSentences=True) if self._segmentSize is not None else [text])
+		]
+		splitTexts, splitSources = zip(*splitTextsWithSources, strict=True) # From Stack Overflow
+		self._vectorstore.add_texts(splitTexts, metadatas=[{"url": splitSource} for splitSource in splitSources])
+		return len(splitTexts)
 	
 	def remove(self, text: str | Iterable[str]) -> int:
 		"""Removes texts from the vectorstore. Returns the number of documents removed.
@@ -56,7 +66,8 @@ class Vectorstore(SaveableClass):
 		# return len(allTexts)
 	
 	def clear(self) -> None:
-		raise NotImplementedError
+		del self._vectorstore
+		self._vectorstore = FAISS.from_texts([""], EMBEDDING_MODEL)
 	
 	def save(self, filepath: str | None = None) -> bool:
 		"""Saves the vectorstore to the provided filepath, or the last-used filepath if none is provided. Returns whether it succeeded."""

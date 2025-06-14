@@ -129,7 +129,7 @@ I'm primarily interacted with via pinging me or slash commands. The commands I s
 **Owner only:**
 [ownerDescriptions]
 
-For messages sent after I'm added, trusted users can also request to add existing messages to the vectorstore by reacting with [emote], assuming the original author then gives his/her permission.""",
+For messages sent after I'm added, trusted users can also request to add existing messages to the vectorstore by reacting with [emote], assuming the original author then gives his/her permission. However, I currently can't detect reactions on messages sent prior to when I last came online; for those messages, use `/add Vectorstore [URL]` instead.""",
 	}
 	LOAD__ERROR: dict[SupportedLanguages, str] = {
 		"English": "An error occurred while loading the object.",

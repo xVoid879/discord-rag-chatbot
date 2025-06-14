@@ -1,4 +1,4 @@
-from typing import Iterable, Literal, TypeAlias
+from typing import Literal, TypeAlias
 
 SupportedLanguages: TypeAlias = Literal["English"]
 
@@ -14,54 +14,57 @@ def getLanguagePlural(language: SupportedLanguages, count: int) -> str:
 class AITexts:
 	# Supported substitutions: [context]
 	CONTEXT_ADDITION: dict[SupportedLanguages, str] = {
-		"English": "Context: [context]"
+		"English": "Context: [context]",
+	}
+	INVALID_API_KEY: dict[SupportedLanguages, str] = {
+		"English": "Invalid API key provided. (Make sure to use pydantic.SecretStr instead of str.)",
 	}
 	# Supported substitutions: [count]
 	INVALID_MAX_INPUT_CHARACTERS_TYPE: dict[SupportedLanguages, str] = {
-		"English": "Invalid maximum input characters count provided: [count]"
+		"English": "Invalid maximum input characters count provided: [count]",
 	}
 	# Supported substitutions: [count]
 	INVALID_MAX_OUTPUT_CHARACTERS_TYPE: dict[SupportedLanguages, str] = {
-		"English": "Invalid maximum output characters count provided: [count]"
+		"English": "Invalid maximum output characters count provided: [count]",
 	}
 	# Supported substitutions: [prompt]
 	INVALID_SYSTEM_PROMPT: dict[SupportedLanguages, str] = {
-		"English": "Invalid system prompt provided: [prompt]"
+		"English": "Invalid system prompt provided: [prompt]",
 	}
 	# Supported substitutions: [temperature]
 	INVALID_TEMPERATURE: dict[SupportedLanguages, str] = {
-		"English": "Invalid temperature provided: [temperature]"
+		"English": "Invalid temperature provided: [temperature]",
 	}
 	# Supported substitutions: [count], [promptLength]
 	MAX_CHARACTERS_TOO_SMALL: dict[SupportedLanguages, str] = {
-		"English": "Maximum input characters is too small to pass any user prompts ([count] vs. [promptLength] characters excluding context)."
+		"English": "Maximum input characters is too small to pass any user prompts ([count] vs. [promptLength] characters excluding context).",
 	}
 	# Supported substitutions: [error]
 	QUERY_ERROR: dict[SupportedLanguages, str] = {
-		"English": "Error generating response: [error]"
+		"English": "Error generating response: [error]",
 	}
 
 # cache.py
 class CacheTexts:
 	# Supported substitutions: [time]
 	INVALID_EXPIRATION_TIME: dict[SupportedLanguages, str] = {
-		"English": "Invalid expiration time provided: [time]"
+		"English": "Invalid expiration time provided: [time]",
 	}
 	# Supported substitutions: [key]
 	INVALID_KEY: dict[SupportedLanguages, str] = {
-		"English": "Invalid key provided: [key]"
+		"English": "Invalid key provided: [key]",
 	}
 	# Supported substitutions: [size]
 	INVALID_MAX_SIZE: dict[SupportedLanguages, str] = {
-		"English": "Invalid maximum cache size provided: [size]"
+		"English": "Invalid maximum cache size provided: [size]",
 	}
 	# Supported substitutions: [temperature]
 	INVALID_SIMILARITY_THRESHOLD: dict[SupportedLanguages, str] = {
-		"English": "Invalid minimum semantic similarity provided: [threshold]"
+		"English": "Invalid minimum semantic similarity provided: [threshold]",
 	}
 	# Supported substitutions: [value]
 	INVALID_VALUE: dict[SupportedLanguages, str] = {
-		"English": "Invalid value provided: [value]"
+		"English": "Invalid value provided: [value]",
 	}
 
 # Main.py
@@ -75,15 +78,12 @@ class MainTexts:
 
 # messages.py
 class MessagesTexts:
-	ADD__SINGLE_WORDS_ONLY: dict[SupportedLanguages, str] = {
-		"English": "All texts received solely consist of individual words. Make sure to wrap your texts in quotation marks.",
-	}
 	# Supported substitutions: [count], [plural]
 	ADD__ERROR: dict[SupportedLanguages, str] = {
-		"English": "[count] object[plural] failed to be added."
+		"English": "[count] object[plural] failed to be added.",
 	}
 	ASK__AI_DISCLAIMER: dict[SupportedLanguages, str] = {
-		"English": "My response was AI-generated and therefore may contain errors and inaccuracies. Verify all information before using anything."
+		"English": "My response was AI-generated and therefore may contain errors and inaccuracies. Verify all information before using anything.",
 	}
 	ASK__CACHED_RESPONSE: dict[SupportedLanguages, str] = {
 		"English": "Cached response.",
@@ -95,8 +95,15 @@ class MessagesTexts:
 	ASK__DEFAULT_CONTEXT: dict[SupportedLanguages, str] = {
 		"English": "None",
 	}
+	ASK__DEFAULT_SOURCE: dict[SupportedLanguages, str] = {
+		"English": "No URL",
+	}
 	ASK__ERROR_IF_NO_CONTEXT: dict[SupportedLanguages, str] = {
-		"English": "No sources could be found that relate to the provided query."
+		"English": "No sources could be found that relate to the provided query.",
+	}
+	# Supported substitutions: [relevance]
+	ASK__RELEVANCE_ESTIMATE: dict[SupportedLanguages, str] = {
+		"English": "Estimated relevance: [relevance]",
 	}
 	# Supported substitutions: [messages]
 	ASK__RETURN_VECTORSTORE: dict[SupportedLanguages, str] = {
@@ -104,7 +111,10 @@ class MessagesTexts:
 [messages]""",
 	}
 	BLOCKED: dict[SupportedLanguages, str] = {
-		"English": f"`You are blocked from interacting with this bot.",
+		"English": "`You are blocked from interacting with this bot.",
+	}
+	DANGEROUS_FILEPATH: dict[SupportedLanguages, str] = {
+		"English": "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted. (Contact another trusted user if this is a misunderstanding.)",
 	}
 	# Supported substitutions: [descriptions], [emote]
 	HELP: dict[SupportedLanguages, str] = {
@@ -112,15 +122,14 @@ class MessagesTexts:
 **I am still under development and do not have full functionality yet.**
 
 I'm primarily interacted with via pinging me or slash commands. The commands I support are
-[descriptions]
+**General:**
+[generalDescriptions]
+**Trusted only:**
+[trustedDescriptions]
+**Owner only:**
+[ownerDescriptions]
 
-For messages sent after I'm added, trusted users can also request to add existing messages to the vectorstore by reacting with [emote], assuming the original author then gives his/her permission."""
-	}
-	IS_IN__FOUND_EMOTES: dict[SupportedLanguages, Iterable[str]] = {
-		"English": ("🇾", "🇪", "🇸")
-	}
-	IS_IN__NOT_FOUND_EMOTES: dict[SupportedLanguages, Iterable[str]] = {
-		"English": ("🇳", "🇴")
+For messages sent after I'm added, trusted users can also request to add existing messages to the vectorstore by reacting with [emote], assuming the original author then gives his/her permission.""",
 	}
 	LOAD__ERROR: dict[SupportedLanguages, str] = {
 		"English": "An error occurred while loading the object.",
@@ -142,28 +151,24 @@ For messages sent after I'm added, trusted users can also request to add existin
 	}
 	# Supported substitutions: [count], [plural]
 	REMOVE__ERROR: dict[SupportedLanguages, str] = {
-		"English": "[count] object[plural] failed to be removed."
+		"English": "[count] object[plural] failed to be removed.",
 	}
 	SAVE__ERROR: dict[SupportedLanguages, str] = {
 		"English": "An error occurred while saving the object.",
 	}
 
 class RequestsTexts:
-	# Supported substitutions: [missing]
-	MISSING_KEYWORDS: dict[SupportedLanguages, str] = {
-		"English": "Some provided keywords could not be found in provided message: [missing]"
-	}
 	PERMISSION_REQUEST: dict[SupportedLanguages, str] = {
 		"English": """[recipientID], if you react to this message with ✅, this bot's trusted users will no longer need to request your permission to add your messages to the bot's corpus. This does not mean your messages WILL be added, but that they COULD be added if a trusted user thinks one of your messages would improve the bot.
 This is entirely voluntary and can be revoked at any time by running `revoke`. However (for the moment at least), any messages of yours added prior to revocation will still remain in the bot's corpus, and will influence answers in all servers the bot is present in, not just this server.
 
-To agree to this, react to this message with ✅. To reject this, react with ❌."""
+To agree to this, react to this message with ✅. To reject this, react with ❌.""",
 	}
 	RECIPIENT_ID_UNCHANGEABLE: dict[SupportedLanguages, str] = {
-		"English": "Recipient ID cannot be changed."
+		"English": "Recipient ID cannot be changed.",
 	}
 	RECIPIENT_ID_MUST_EXIST: dict[SupportedLanguages, str] = {
-		"English": "Recipient ID cannot be recorded as None."
+		"English": "Recipient ID cannot be recorded as None.",
 	}
 	# Supported substitutions: [recipientID], [requesterIDs], [desiredMessageLinks]
 	VECTORSTORE_REQUEST: dict[SupportedLanguages, str] = {
@@ -172,5 +177,5 @@ To agree to this, react to this message with ✅. To reject this, react with ❌
 If you allow this, the information in those messages may be incorporated into future answers the bot provides, whenever it is asked relevant questions. This is entirely voluntary, but (for the moment at least) it cannot be undone, and it will influence answers in all servers the bot is present in, not just this server.
 
 To agree to this, react to this message with ✅. To reject this, react with ❌.
--# If more of your messages are requested to be added before this message is answered, this message will be updated instead of a new message being generated."""
+-# If more of your messages are requested to be added before this message is answered, this message will be updated instead of a new message being generated.""",
 	}

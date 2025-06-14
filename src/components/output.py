@@ -1,4 +1,4 @@
-from discord import Interaction, Message, WebhookMessage
+from discord import Interaction, InteractionMessage, Message, WebhookMessage
 from discord import Thread, StageChannel, TextChannel, VoiceChannel
 from discord.ext.commands import Bot # type: ignore
 from typing import overload
@@ -9,6 +9,7 @@ class Output:
 
 	@staticmethod
 	async def getMessageFromURL(url: str, *, bot: Bot) -> Message | None:
+		# Adapted from Stack Overflow: https://stackoverflow.com/a/63212069
 		splitURL = url.split("/", maxsplit=7)
 		if len(splitURL) < 7: return None
 		try:
@@ -67,17 +68,18 @@ class Output:
 	@staticmethod
 	async def replyWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message] | list[WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)
-		brokenText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
-		return [
-			await message.followup.send(segment, wait=True, ephemeral=ephemeral) for segment in brokenText if segment
-		] if isinstance(message, Interaction) else [
-			await message.reply(segment, mention_author=False) for segment in brokenText if segment
-		]
+		segmentedText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
+		sentMessages: list[Message | WebhookMessage] = []
+		for segment in (s for s in segmentedText if s):
+			sentMessages.append(
+				await lastMessage.followup.send(segment, wait=True, ephemeral=ephemeral)
+				if isinstance(lastMessage := sentMessages[-1] if sentMessages else message, Interaction)
+				else await lastMessage.reply(segment, mention_author=False))
+		return sentMessages
 	
 	@staticmethod
 	@overload
-	async def editWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message | WebhookMessage]:
-		"""NOTE: Not implemented yet."""
+	async def editWithinCharacterLimit(message: Interaction, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[InteractionMessage | WebhookMessage]:
 		raise NotImplementedError
 
 	@staticmethod
@@ -86,13 +88,18 @@ class Output:
 		raise NotImplementedError
 
 	@staticmethod
-	async def editWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message | WebhookMessage]:
+	async def editWithinCharacterLimit(message: Interaction | Message, text: str, limit: int | None = DISCORD_MESSAGE_CHARACTER_LIMIT, *, overlapSentences: bool = False, ephemeral: bool = False) -> list[Message] | list[InteractionMessage | WebhookMessage]:
 		if isinstance(message, Interaction) and not message.response.is_done(): await message.response.defer(ephemeral=ephemeral)
-		brokenText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
-		if not brokenText: return []
-		if isinstance(message, Interaction): raise NotImplementedError
-		await message.edit(content=brokenText[0])
-		return [message] + [await message.reply(segment, mention_author=False) for segment in brokenText[1:] if segment]
+		segmentedText = Output.splitIntoSentences(text, limit, overlapSentences=overlapSentences) if limit is not None and limit > 0 else [text]
+		if not segmentedText: return []
+		editedMessage = await message.edit_original_response(content=segmentedText[0]) if isinstance(message, Interaction) else await message.edit(content=segmentedText[0])
+		sentMessages: list[InteractionMessage | Message | WebhookMessage] = [editedMessage]
+		for segment in (s for s in segmentedText[1:] if s):
+			sentMessages.append(
+				await lastMessage.followup.send(segment, wait=True, ephemeral=ephemeral)
+				if isinstance(lastMessage := sentMessages[-1] if sentMessages else message, Interaction)
+				else await lastMessage.reply(segment, mention_author=False))
+		return sentMessages
 	
 	@staticmethod
 	async def indicateSuccess(message: Interaction | Message, text: str | None = None) -> None:

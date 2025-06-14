@@ -17,25 +17,33 @@ class Cache(SaveableClass):
 
 	def __init__(self, maxSize: float, expirationTime: float | None = None, semanticSimilarityThreshold: float | None = 0., filepath: str | None = None) -> None:
 		"""Initialization."""
+		# Filepath
 		super().__init__(filepath)
+		# Embedding model
 		self._embeddingModel = TextEmbedding()
+		# Semantic threshold
 		if semanticSimilarityThreshold is not None and (not isinstance(semanticSimilarityThreshold, (int, float)) or semanticSimilarityThreshold < 0. or semanticSimilarityThreshold > 1.): raise ValueError(CacheTexts.INVALID_SIMILARITY_THRESHOLD[LANGUAGE].replace("[threshold]", f"{semanticSimilarityThreshold}"))
 		self._semanticSimilarityThreshold = 0. if semanticSimilarityThreshold is None else semanticSimilarityThreshold
 
 		if not self.load(filepath):
+			# Max size
 			if not isinstance(maxSize, (int, float)) or maxSize < 0.: raise ValueError(CacheTexts.INVALID_MAX_SIZE[LANGUAGE].replace("[size]", f"{maxSize}"))
+			# Expiration time
 			if expirationTime is not None and (not isinstance(expirationTime, (int, float)) or expirationTime < 0.): raise ValueError(CacheTexts.INVALID_EXPIRATION_TIME[LANGUAGE].replace("[time]", f"{expirationTime}"))
 			self._cache = TTLCache(maxSize, float("inf") if expirationTime is None else expirationTime) if maxSize > 0. and (expirationTime is None or expirationTime > 0.) else None
 
 	def __len__(self) -> int:
+		"""Returns the number of entries currently in the cache."""
 		return len(self._cache) if self._cache is not None else 0
 
 	def __setitem__(self, key: str, value: tuple[str, NumpyArray]) -> None:
 		"""Associates the provided key to the provided value in the cache."""
+		# Verify key type
 		if not isinstance(key, str): raise ValueError(CacheTexts.INVALID_KEY[LANGUAGE].replace("[key]", f"{key}"))
+		# Verify value type
 		if not isinstance(value, tuple) or len(value) != 2 or not isinstance(value[0], str) or not isinstance(value[1], ndarray): raise ValueError(CacheTexts.INVALID_VALUE[LANGUAGE].replace("[value]", f"{value}"))
 		if self._cache is None: return
-		self._cache.__setitem__(key, value)
+		self._cache[key] = value
 
 	@staticmethod
 	def cosineSimilarity(vectorA: NumpyArray, vectorB: NumpyArray) -> float:
@@ -67,6 +75,7 @@ class Cache(SaveableClass):
 		return bestMatch if highestSimilarity >= self._semanticSimilarityThreshold else None
 	
 	def clear(self) -> None:
+		"""Clears the cache."""
 		if self._cache is None: return
 		self._cache.clear()
 

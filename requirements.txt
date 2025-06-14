@@ -3,3 +3,4 @@ faiss-cpu
 fastembed
 langchain_community # In theory removable with enough manual implementation
 langchain_groq
+numpy # Solely used for typing. If there is a way to keep the type enforcement but remove this, that'd be preferred.

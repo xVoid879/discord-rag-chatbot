@@ -49,7 +49,7 @@ async def message_ask(
 			await Output.replyWithinCharacterLimit(source, response + "\n-# " + MessagesTexts.ASK__CACHED_RESPONSE[LANGUAGE] + (" " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
 			return
 	# Retrieve context and scores from vectorstore
-	context = "\n\n".join(f"{'' if ai is not None else (sourceURL if sourceURL is not None else '[No URL]') + ' '}_(Estimated relevance: **{score:.2%}**)_\n{text}".strip() for text, sourceURL, score in vectorstore.query(query)) if vectorstore is not None else MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]
+	context = "\n\n".join(f"{'' if ai is not None else (sourceURL if sourceURL is not None else '[' + MessagesTexts.ASK__DEFAULT_SOURCE[LANGUAGE] + ']') + ' '}_({MessagesTexts.ASK__RELEVANCE_ESTIMATE[LANGUAGE].replace('[relevance]', f'**{score:.2%}**')})_\n{text}".strip() for text, sourceURL, score in vectorstore.query(query)) if vectorstore is not None else MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]
 	if context and context != MessagesTexts.ASK__DEFAULT_CONTEXT[LANGUAGE]:
 		context = "\n" + context
 	# If context is required, and no context is found, return error
@@ -58,6 +58,7 @@ async def message_ask(
 		return
 
 	# Retrieve AI response
+	# TODO: Automatically truncate number of context messages returned if AI is disabled but max AI output characters is specified
 	response = ai.query(query, context) if ai is not None else MessagesTexts.ASK__RETURN_VECTORSTORE[LANGUAGE].replace("[messages]", context)
 	# Send message to user, and cache for future
 	await Output.replyWithinCharacterLimit(source, response + ("\n-# " + MessagesTexts.ASK__AI_DISCLAIMER[LANGUAGE] if ai is not None else ""))
@@ -73,7 +74,13 @@ async def message_clear(source: Interaction | Message, *, objects: Iterable[Cach
 
 async def message_help(source: Interaction | Message, command: str | None = None) -> None:
 	"""Prints the help message."""
-	await Output.replyWithinCharacterLimit(source, f"`{DISCORD_COMMAND_DOCUMENTATION[command][0]}`: {DISCORD_COMMAND_DOCUMENTATION[command][1]}" if command is not None and command in DISCORD_COMMAND_DOCUMENTATION else MessagesTexts.HELP[LANGUAGE].replace("[descriptions]", "\n".join(f"- `{syntax}`: {description}" for syntax, description in DISCORD_COMMAND_DOCUMENTATION.values())).replace("[emote]", DISCORD_REQUEST_ADDITION_EMOJI))
+	await Output.replyWithinCharacterLimit(source, f"`{DISCORD_COMMAND_DOCUMENTATION[command][1]}`: {DISCORD_COMMAND_DOCUMENTATION[command][2]}" if command is not None and command in DISCORD_COMMAND_DOCUMENTATION else MessagesTexts.HELP[LANGUAGE].replace(
+		"[generalDescriptions]", "\n".join(f"- `{syntax}`: {description}" for permissionLevel, syntax, description in DISCORD_COMMAND_DOCUMENTATION.values() if permissionLevel == "general")
+	).replace(
+		"[trustedDescriptions]", "\n".join(f"- `{syntax}`: {description}" for permissionLevel, syntax, description in DISCORD_COMMAND_DOCUMENTATION.values() if permissionLevel == "trusted")
+	).replace(
+		"[ownerDescriptions]", "\n".join(f"- `{syntax}`: {description}" for permissionLevel, syntax, description in DISCORD_COMMAND_DOCUMENTATION.values() if permissionLevel == "owner")
+	).replace("[emote]", DISCORD_REQUEST_ADDITION_EMOJI))
 
 async def message_contains(source: Interaction | Message, *entries: str, obj: Group | Requests) -> None:
 	"""Reacts whether the specified entry is stored in the specified object."""
@@ -94,7 +101,7 @@ async def message_load(source: Interaction | Message, filepaths: Iterable[str] |
 	for obj, filepath in (zip(objects, filepaths if filepaths is not None else repeat(None))):
 		if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
 			trustedGroup.remove(source.user.id if isinstance(source, Interaction) else source.author.id)
-			return await Output.indicateFailure(source, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
+			return await Output.indicateFailure(source, MessagesTexts.DANGEROUS_FILEPATH[LANGUAGE])
 		if not obj.load(filepath):
 			return await Output.indicateFailure(source, MessagesTexts.LOAD__ERROR[LANGUAGE])
 	await Output.indicateSuccess(source)
@@ -125,7 +132,7 @@ async def message_save(source: Interaction | Message, filepaths: Iterable[str] |
 	for obj, filepath in (zip(objects, filepaths if filepaths is not None else repeat(None))):
 		if filepath is not None and trustedGroup is not None and not obj.verify(filepath):
 			trustedGroup.remove(source.user.id if isinstance(source, Interaction) else source.author.id)
-			return await Output.indicateFailure(source, "An invalid filepath was specified that could potentially have caused damage if executed. As a precautionary measure, you have been distrusted.\n-# Contact another trusted user if this is a misunderstanding.")
+			return await Output.indicateFailure(source, MessagesTexts.DANGEROUS_FILEPATH[LANGUAGE])
 		if not obj.save(filepath):
 			return await Output.indicateFailure(source, MessagesTexts.SAVE__ERROR[LANGUAGE])
 	await Output.indicateSuccess(source)

@@ -13,7 +13,6 @@ from src.components.saveableClass import SaveableClass
 EMBEDDING_MODEL = FastEmbedEmbeddings()
 # embeddingDimension = list(EMBEDDING_MODEL.embed(""))[0].size
 
-# TODO: Also store and retrieve messages' jump URLs as metadata
 class Vectorstore(SaveableClass):
 	# _vectorstore: faiss.IndexFlatL2
 	_vectorstore: FAISS

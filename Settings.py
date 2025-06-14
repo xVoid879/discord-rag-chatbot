@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 from src.translations import SupportedLanguages
 
 """Language settings"""
@@ -47,19 +48,22 @@ DISCORD_OTHER_BOT_PREFIXES: set[str] = {
 	"!", "!!", # Zeppelin#3008
 }
 DISCORD_REQUEST_ADDITION_EMOJI: str = "↪️"
-DISCORD_COMMAND_DOCUMENTATION: dict[str, tuple[str, str]] = { # Command: (syntax, description)
-	"ask": ("[/ask or ping me] [query]", "Looks up and generates an answer for the provided query."),
-	"help": ("/help [command (optional)]", "Prints my purpose and list of commands, or a single command if one is specified."),
-	"ping": ("/ping", "Returns my latency."),
-	"getsize": ("/getsize [Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests]", "Returns the number of entries in the provided object."),
-	"contains": ("/contains [Blocked Group|Permitting Group|Trusted Group] [user ID (optional)]", "Returns whether the provided group contains the provided user (defaulting to yourself)."),
-	"permit": ("[ping me] permit", "Permits trusted users to add your messages to my corpus without individually requesting permission."),
-	"revoke": ("/revoke", "Revokes your permission for trusted users to add your messages without individually requesting permission."),
-	"add": ("/add [Blocked Group|Trusted Group|Vectorstore] [user ID/message URL]", "(Trusted only) Adds the provided user ID/requests to add the linked message to the provided group/vectorstore."),
-	"clear": ("/clear [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore Requests]", "(Trusted only) Clears the provided object(s)."),
-	"remove": ("/remove [Blocked Group|Trusted Group] [user ID]", "(Trusted only) Removes the provided user ID from the provided group."),
-	"save": ("/save [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Saves the provided object to the provided filepath, or their last-used filepath if none is provided."),
-	"load": ("/load [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Loads the provided object from the provided filepath, or their last-used filepath if none is provided."),
+DISCORD_COMMAND_DOCUMENTATION: dict[str, tuple[Literal["general", "trusted", "owner"], str, str]] = { # Command: (permission level, syntax, description)
+	# General
+	"ask": ("general", "[/ask or ping me] [query]", "Looks up and generates an answer for the provided query."),
+	"help": ("general", "/help [command (optional)]", "Prints my purpose and list of commands, or a single command if one is specified."),
+	"ping": ("general", "/ping", "Returns my latency."),
+	"permit": ("general", "[ping me] permit", "Permits trusted users to add your messages to my corpus without individually requesting permission."),
+	"revoke": ("general", "/revoke", "Revokes your permission for trusted users to add your messages without individually requesting permission."),
+	"getsize": ("general", "/getsize [Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests]", "Returns the number of entries in the provided object."),
+	"contains": ("general", "/contains [Blocked Group|Permitting Group|Trusted Group] [user ID (optional)]", "Returns whether the provided group contains the provided user (defaulting to yourself)."),
+	# Trusted only
+	"add": ("trusted", "/add [Blocked Group|Trusted Group|Vectorstore] [user ID/message URL]", "(Trusted only) Adds the provided user ID/requests to add the linked message to the provided group/vectorstore."),
+	"clear": ("trusted", "/clear [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore Requests]", "(Trusted only) Clears the provided object(s)."),
+	"remove": ("trusted", "/remove [Blocked Group|Trusted Group] [user ID]", "(Trusted only) Removes the provided user ID from the provided group."),
+	# Owner only
+	"save": ("owner", "/save [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Saves the provided object to the provided filepath, or their last-used filepath if none is provided."),
+	"load": ("owner", "/load [All|Blocked Group|Cache|Permitting Group|Permitting Requests|Trusted Group|Vectorstore|Vectorstore Requests] [filepath (optional)]", "(Owner only) Loads the provided object from the provided filepath, or their last-used filepath if none is provided."),
 }
 
 """Groups settings"""

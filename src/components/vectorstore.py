@@ -6,7 +6,7 @@ from langchain_community.vectorstores import FAISS
 import os
 from typing import Iterable
 
-from src.components.output import Output
+from src.components.discord import Discord
 from src.components.saveableClass import SaveableClass
 
 # EMBEDDING_MODEL = TextEmbedding()
@@ -50,7 +50,7 @@ class Vectorstore(SaveableClass):
 		splitTextsWithSources = [
 			(segment, source)
 			for text, source in zip([texts] if isinstance(texts, str) else texts, repeat(None) if sources is None else [sources] if isinstance(sources, str) else sources)
-			for segment in (Output.splitIntoSentences(text, self._segmentSize, overlapSentences=True) if self._segmentSize is not None else [text])
+			for segment in (Discord.splitIntoSentences(text, self._segmentSize, overlapSentences=True) if self._segmentSize is not None else [text])
 		]
 		splitTexts, splitSources = zip(*splitTextsWithSources, strict=True) # From Stack Overflow
 		self._vectorstore.add_texts(splitTexts, metadatas=[{"url": splitSource} for splitSource in splitSources])

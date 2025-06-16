@@ -6,12 +6,12 @@ from Settings import LANGUAGE
 from src.components.group import Group
 from src.components.saveableClass import SaveableClass
 from src.components.vectorstore import Vectorstore
-from src.translations import RequestsTexts
+from Translations import RequestsTexts
 
 RequestableObjects: TypeAlias = Group | Vectorstore
 
 # TODO: Have requests expire and auto-delete themselves after a configurable amount of time
-# TODO: Is there a way to save/load the request dictionaries (and by extension the Message objects) without resorting to possibly-vulnerable Pickle serialization/deserialization?
+# TODO: Pickle cannot save/load the requests dictionary (possible due to Message?)
 class RequestData(TypedDict):
 	recipientID: int
 	requesterIDs: list[int]

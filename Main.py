@@ -9,7 +9,7 @@ from typing import Literal
 from Settings import *
 from src.messages import *
 from src.reactions import *
-from src.translations import MainTexts, RequestsTexts
+from Translations import MainTexts, RequestsTexts
 
 if len(argv) < 1: raise RuntimeError(MainTexts.NO_ARGUMENTS_FOUND[LANGUAGE])
 CURRENT_DIRECTORY = abspath(dirname(argv[0]))
@@ -113,7 +113,7 @@ async def on_message_delete(message: Message) -> None:
 		requestsList.remove(message)
 
 
-@bot.tree.command(name="add", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["add"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="add", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["add"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object being added to.",
 	entry = "The entry being added to the object."
@@ -124,27 +124,28 @@ async def command_add(interaction: Interaction, object: Literal["Blocked Group",
 	# If adding text to the vectorstore:
 	if object == "Vectorstore":
 		# Provided input must be the URL of a message
-		if (messageToAdd := await Output.getMessageFromURL(entry, bot=bot)) is None: return await Output.indicateFailure(interaction)
+		if (messageToAdd := await Discord.getMessage(entry, bot=bot)) is None: return await Discord.indicateFailure(interaction)
 		# If the message's author is the reactor him/herself, or has previously waived, there's no need to ask permission
 		if messageToAdd.author == interaction.user or messageToAdd.author.id in permittingGroup:
 			await reaction_answerRequest(messageToAdd, True, requests=vectorstoreRequests, bot=bot)
-			return await Output.indicateSuccess(interaction)
 		# Otherwise ask for permission
-		return await reaction_newOrUpdateRequest(messageToAdd, interaction, requests=vectorstoreRequests)
+		else:
+			await reaction_newOrUpdateRequest(messageToAdd, interaction, requests=vectorstoreRequests)
+		return await Discord.indicateSuccess(interaction)
 	# If adding a user to a group: that is handled separately
 	else: await message_add(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup)
 
 
-@bot.tree.command(name="ask", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ask"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="ask", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["ask"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
-	query = "Your query.",
+	query = "Your query."
 )
 async def command_ask(interaction: Interaction, query: str) -> None:
 	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	await message_ask(interaction, query, ai=ai, cache=cache, cooldown=cooldown, vectorstore=vectorstore)
 
 
-@bot.tree.command(name="clear", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["clear"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="clear", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["clear"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object to clear."
 )
@@ -163,7 +164,7 @@ async def command_clear(interaction: Interaction, object: Literal["All", "Blocke
 	))
 
 
-@bot.tree.command(name="contains", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["contains"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="contains", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["contains"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	group = "The group to test.",
 	user = "(Optional) The user ID to test. If omitted, defaults to yourself."
@@ -178,7 +179,7 @@ async def command_contains(interaction: Interaction, group: Literal["Blocked Gro
 		else vectorstoreRequests
 	))
 
-@bot.tree.command(name="getsize", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["getsize"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="getsize", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["getsize"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object whose size to return.",
 )
@@ -195,7 +196,7 @@ async def command_getsize(interaction: Interaction, object: Literal["Blocked Gro
 	))
 
 
-@bot.tree.command(name="help", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["help"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="help", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["help"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	command = "(Optional) The command you want info about. If omitted, prints info about all commands."
 )
@@ -204,7 +205,7 @@ async def command_help(interaction: Interaction, command: str | None = None) -> 
 	await message_help(interaction, command)
 
 
-@bot.tree.command(name="load", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["load"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="load", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["load"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object to load.",
 	filepath = "(Optional) The filepath to use. If omitted, the most recent filepath is used."
@@ -223,20 +224,20 @@ async def command_load(interaction: Interaction, object: Literal["All", "Blocked
 	))
 
 
-# @bot.tree.command(name="permit", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["permit"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+# @bot.tree.command(name="permit", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["permit"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 # async def command_permit(interaction: Interaction) -> None:
 # 	# Intentionally allow blocked users to use this command
 # 	await reaction_newOrUpdateRequest(interaction, interaction, requests=permissionRequests)
 
 
-@bot.tree.command(name="ping", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["ping"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="ping", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["ping"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 async def command_ping(interaction: Interaction) -> None:
 	"""Returns the bot's latency."""
 	if interaction.user.id in blockedGroup and not await bot.is_owner(interaction.user): return await message_blocked(interaction)
 	await message_ping(interaction, bot=bot)
 
 
-@bot.tree.command(name="remove", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["remove"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="remove", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["remove"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object being removed from.",
 	entry = "The entry being removed from the object."
@@ -249,13 +250,13 @@ async def command_remove(interaction: Interaction, object: Literal["Blocked Grou
 	# await message_remove(interaction, entry, obj=blockedGroup if object == "Blocked Group" else trustedGroup if object == "Trusted Group" else vectorstore)
 
 
-@bot.tree.command(name="revoke", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["revoke"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="revoke", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["revoke"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 async def command_revoke(interaction: Interaction) -> None:
 	# Intentionally allow blocked users to use this command
 	await message_remove(interaction, str(interaction.user.id), obj=permittingGroup)
 
 
-@bot.tree.command(name="save", description=Output.truncate(DISCORD_COMMAND_DOCUMENTATION["save"][2], Output.DISCORD_DESCRIPTION_CHARACTER_LIMIT))
+@bot.tree.command(name="save", description=Discord.truncate(DISCORD_COMMAND_DOCUMENTATION["save"][2], Discord.DESCRIPTION_CHARACTER_LIMIT))
 @describe(
 	object = "The object to save.",
 	filepath = "(Optional) The filepath to use. If omitted, the most recent filepath is used."

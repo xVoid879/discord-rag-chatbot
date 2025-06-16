@@ -7,7 +7,7 @@ from pickle import dump, load
 
 from Settings import LANGUAGE
 from src.components.saveableClass import SaveableClass
-from src.translations import CacheTexts
+from Translations import CacheTexts
 
 # TODO: Is there a way to save/load the cache (and by extension the Numpy arrays) without resorting to possibly-vulnerable Pickle serialization/deserialization?
 class Cache(SaveableClass):

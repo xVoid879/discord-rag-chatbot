@@ -12,6 +12,9 @@ def getLanguagePlural(language: SupportedLanguages, count: int) -> str:
 
 # ai.py
 class AITexts:
+	NAME: dict[SupportedLanguages, str] = {
+		"English": "AI",
+	}
 	# Supported substitutions: [context]
 	CONTEXT_ADDITION: dict[SupportedLanguages, str] = {
 		"English": "Context: [context]",
@@ -46,6 +49,9 @@ class AITexts:
 
 # cache.py
 class CacheTexts:
+	NAME: dict[SupportedLanguages, str] = {
+		"English": "Cache",
+	}
 	# Supported substitutions: [time]
 	INVALID_EXPIRATION_TIME: dict[SupportedLanguages, str] = {
 		"English": "Invalid expiration time provided: [time]",
@@ -158,6 +164,10 @@ For messages sent after I'm added, trusted users can also request to add existin
 	}
 
 class RequestsTexts:
+	# Supported substitutions: [associatedObject]
+	NAME: dict[SupportedLanguages, str] = {
+		"English": "[associatedObject] Requests",
+	}
 	PERMISSION_REQUEST: dict[SupportedLanguages, str] = {
 		"English": """[recipientID], if you react to this message with ✅, this bot's trusted users will no longer need to request your permission to add your messages to the bot's corpus. This does not mean your messages WILL be added, but that they COULD be added if a trusted user thinks one of your messages would improve the bot.
 This is entirely voluntary and can be revoked at any time by running `revoke`. However (for the moment at least), any messages of yours added prior to revocation will still remain in the bot's corpus, and will influence answers in all servers the bot is present in, not just this server.
@@ -178,4 +188,11 @@ If you allow this, the information in those messages may be incorporated into fu
 
 To agree to this, react to this message with ✅. To reject this, react with ❌.
 -# If more of your messages are requested to be added before this message is answered, this message will be updated instead of a new message being generated.""",
+	}
+
+# vectorstore.py
+# TODO: Unfinished
+class VectorstoreTexts:
+	NAME: dict[SupportedLanguages, str] = {
+		"English": "Vectorstore"
 	}

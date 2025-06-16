@@ -2,8 +2,8 @@ from langchain_groq import ChatGroq
 from pydantic import SecretStr
 
 from Settings import LANGUAGE
-from src.components.output import Output
-from src.translations import AITexts
+from src.components.discord import Discord
+from Translations import AITexts
 
 class AI:
 	_ai: ChatGroq
@@ -51,4 +51,4 @@ class AI:
 		assert isinstance(response, str)
 		# Truncate response if necessary.
 		# References are handled outside of this function.
-		return Output.truncate(response, self._maxOutputCharacters) if self._maxOutputCharacters is not None else response
+		return Discord.truncate(response, self._maxOutputCharacters) if self._maxOutputCharacters is not None else response

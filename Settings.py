@@ -1,6 +1,6 @@
 import os
 from typing import Literal
-from src.translations import SupportedLanguages
+from Translations import SupportedLanguages
 
 """Language settings"""
 LANGUAGE: SupportedLanguages = "English"
